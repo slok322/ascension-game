@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ascension</title>
+<style>
+  :root{
+    --nuit1:#0b1026;
+    --nuit2:#241a4a;
+    --aube:#ff6b4a;
+    --or:#ffd166;
+    --menthe:#4ecdc4;
+    --malus:#ef476f;
+    --brume:#8d8fc7;
+    --panneau:#151233;
+    --diamant:#7ee8fa;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--nuit1);
+    font-family:'Trebuchet MS',-apple-system,sans-serif;
+    overflow:hidden;
+    color:#f2f0ff;
+    user-select:none;
+  }
+  #app{
+    position:relative;
+    width:100%;
+    max-width:480px;
+    height:100vh;
+    margin:0 auto;
+    overflow:hidden;
+    background:linear-gradient(180deg,var(--nuit2) 0%, var(--nuit1) 65%);
+    box-shadow:0 0 60px rgba(0,0,0,0.6);
+  }
+  canvas{
+    position:absolute;
+    top:0;left:0;
+    width:100%;height:100%;
+    touch-action:none;
+  }
+  #hud{
+    position:absolute;top:0;left:0;right:0;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;
+    z-index:5;
+    pointer-events:none;
+    gap:6px;
+  }
+  .pill{
+    background:rgba(21,18,51,0.72);
+    border:1px solid rgba(255,255,255,0.12);
+    backdrop-filter:blur(4px);
+    border-radius:999px;
+    padding:6px 14px;
+    font-weight:700;
+    font-size:14px;
+    display:flex;align-items:center;gap:6px;
+    pointer-events:auto;
+    transition:box-shadow 0.2s, background 0.2s;
+  }
+  .pill.coins{color:var(--or);}
+  .pill.alt{color:var(--menthe);}
+  .pill.alt.record{background:rgba(255,209,102,0.25);box-shadow:0 0 14px rgba(255,209,102,0.6);color:var(--or);}
+  #btns-top{display:flex;gap:8px;pointer-events:auto;}
+  .icon-btn{
+    background:rgba(21,18,51,0.72);
+    border:1px solid rgba(255,255,255,0.12);
+    color:#f2f0ff;
+    width:34px;height:34px;
+    border-radius:50%;
+    font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn:active{transform:scale(0.92);}
+
+  #controls{
+    position:absolute;bottom:0;left:0;right:0;
+    display:flex;justify-content:space-between;
+    padding:22px;
+    z-index:5;
+  }
+  .ctrl-btn{
+    width:76px;height:76px;
+    border-radius:26px;
+    background:rgba(21,18,51,0.55);
+    border:1px solid rgba(255,255,255,0.15);
+    color:#fff;
+    font-size:30px;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(3px);
+  }
+  .ctrl-btn:active{background:rgba(255,255,255,0.18);}
+
+  .overlay{
+    position:absolute;inset:0;
+    background:rgba(6,5,20,0.86);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:20;
+    padding:24px;
+    text-align:center;
+  }
+  .hidden{display:none !important;}
+  h1{
+    font-size:38px;margin:0 0 4px;
+    letter-spacing:1px;
+    background:linear-gradient(90deg,var(--aube),var(--or));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .sub{color:var(--brume);margin-bottom:18px;font-size:14px;}
+  .streak-line{
+    color:var(--or);font-size:13px;font-weight:700;margin-bottom:20px;
+    background:rgba(255,209,102,0.1);border:1px solid rgba(255,209,102,0.3);
+    padding:6px 14px;border-radius:999px;
+  }
+  .big-btn{
+    background:linear-gradient(135deg,var(--aube),#ff9166);
+    border:none;color:#1a0e0a;font-weight:800;
+    padding:14px 36px;border-radius:16px;
+    font-size:17px;cursor:pointer;
+    box-shadow:0 6px 0 #b7472e, 0 10px 18px rgba(0,0,0,0.35);
+    margin-bottom:14px;
+  }
+  .big-btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b7472e;}
+  .ghost-btn{
+    background:transparent;border:1px solid rgba(255,255,255,0.25);
+    color:#f2f0ff;padding:10px 26px;border-radius:14px;
+    font-size:14px;cursor:pointer;
+    margin-top:6px;
+  }
+  .stat-row{display:flex;gap:22px;margin:14px 0 22px;flex-wrap:wrap;justify-content:center;}
+  .stat{display:flex;flex-direction:column;align-items:center;}
+  .stat b{font-size:26px;}
+  .stat span{font-size:11px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;}
+
+  /* ---- panneau (boutique / défis) ---- */
+  #shop-panel{
+    background:var(--panneau);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:22px;
+    width:100%;max-width:400px;
+    padding:20px;
+    max-height:82vh;
+    overflow-y:auto;
+  }
+  #shop-panel h2{margin:0 0 2px;font-size:22px;}
+  #shop-panel h3{margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;}
+  .wallet-line{color:var(--or);font-weight:700;margin-bottom:6px;font-size:15px;}
+  .streak-mini{color:var(--brume);font-size:12.5px;margin-bottom:14px;}
+
+  .challenge{
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    padding:10px 12px;
+    margin-bottom:8px;
+    text-align:left;
+  }
+  .challenge.done{border-color:rgba(78,205,196,0.5);background:rgba(78,205,196,0.08);}
+  .challenge .top-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:6px;}
+  .challenge .top-row b{font-weight:700;}
+  .challenge .reward{color:var(--or);font-size:12px;white-space:nowrap;}
+  .bar-bg{background:rgba(255,255,255,0.08);border-radius:999px;height:7px;overflow:hidden;}
+  .bar-fill{background:var(--menthe);height:100%;border-radius:999px;transition:width 0.3s;}
+  .challenge.done .bar-fill{background:#4ecdc4;}
+
+  .item{
+    display:flex;align-items:center;gap:12px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;
+    padding:12px;
+    margin-bottom:10px;
+    text-align:left;
+  }
+  .item .ic{
+    width:44px;height:44px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;flex-shrink:0;
+    border:2px solid rgba(255,255,255,0.15);
+  }
+  .item .txt{flex:1;}
+  .item .txt b{display:block;font-size:14.5px;}
+  .item .txt small{color:var(--brume);font-size:11.5px;line-height:1.3;display:block;margin-top:2px;}
+  .buy-btn{
+    background:var(--menthe);color:#062824;border:none;
+    font-weight:800;padding:8px 14px;border-radius:10px;
+    font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .buy-btn:disabled{background:#3a3960;color:#8d8fc7;cursor:default;}
+  .buy-btn.maxed{background:#3a3960;color:var(--brume);}
+  .buy-btn.equipped{background:var(--or);color:#3a2600;}
+
+  .name-input{
+    width:100%;max-width:260px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.2);
+    color:#f2f0ff;font-size:15px;font-weight:700;
+    padding:10px 14px;border-radius:12px;
+    text-align:center;margin-bottom:10px;
+  }
+  .name-input:focus{outline:2px solid var(--menthe);}
+
+  .lb-row{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 10px;border-radius:12px;
+    margin-bottom:6px;
+    background:rgba(255,255,255,0.03);
+    text-align:left;
+  }
+  .lb-row.me{background:rgba(78,205,196,0.12);border:1px solid rgba(78,205,196,0.4);}
+  .lb-rank{width:26px;flex-shrink:0;font-weight:800;color:var(--brume);font-size:13px;text-align:center;}
+  .lb-row:nth-child(1) .lb-rank{color:#ffd166;}
+  .lb-row:nth-child(2) .lb-rank{color:#cfd3e6;}
+  .lb-row:nth-child(3) .lb-rank{color:#e0a458;}
+  .lb-name{flex:1;font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lb-alt{color:var(--menthe);font-weight:800;font-size:13px;white-space:nowrap;}
+  .lb-empty{color:var(--brume);font-size:13px;padding:12px 0;}
+
+  .auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;margin-bottom:16px;width:100%;max-width:280px;}
+  .auth-tab{flex:1;text-align:center;padding:8px;border-radius:9px;font-size:13px;font-weight:700;color:var(--brume);cursor:pointer;}
+  .auth-tab.active{background:var(--menthe);color:#062824;}
+  .auth-field{
+    width:100%;max-width:280px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.2);
+    color:#f2f0ff;font-size:14px;
+    padding:11px 14px;border-radius:12px;
+    margin-bottom:10px;
+  }
+  .auth-field:focus{outline:2px solid var(--menthe);}
+  .auth-error{color:var(--malus);font-size:12.5px;margin:-2px 0 10px;min-height:15px;}
+  .account-line{color:var(--menthe);font-size:12.5px;margin-bottom:6px;}
+  .account-line a{color:var(--brume);text-decoration:underline;cursor:pointer;}
+
+  #malus-banner{
+    position:absolute;top:56px;left:50%;transform:translateX(-50%);
+    background:rgba(239,71,105,0.92);
+    color:#fff;font-weight:800;font-size:13px;
+    padding:8px 18px;border-radius:999px;
+    z-index:6;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.4);
+    white-space:nowrap;
+  }
+
+  #combo-badge{
+    position:absolute;top:98px;left:50%;transform:translateX(-50%);
+    color:var(--or);font-weight:900;font-size:15px;
+    text-shadow:0 2px 6px rgba(0,0,0,0.6);
+    z-index:6;
+    letter-spacing:0.5px;
+  }
+
+  #toast-container{
+    position:absolute;top:56px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:6px;align-items:center;
+    z-index:7;pointer-events:none;
+  }
+  .toast{
+    background:rgba(21,18,51,0.92);
+    border:1px solid rgba(255,209,102,0.4);
+    color:var(--or);font-weight:700;font-size:12.5px;
+    padding:7px 16px;border-radius:999px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.4);
+    animation:toast-in 0.25s ease;
+    white-space:nowrap;
+  }
+  @keyframes toast-in{ from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
+  .toast.fade{ animation:toast-out 0.4s ease forwards; }
+  @keyframes toast-out{ to{opacity:0;transform:translateY(-8px);} }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="pill coins">🪙 <span id="hud-coins">0</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="pill alt" id="hud-alt-pill">⛰️ <span id="hud-alt">0</span> m</div>
+    </div>
+    <div id="btns-top">
+      <div class="icon-btn" id="btn-shop-open">🏪</div>
+      <div class="icon-btn" id="btn-pause">⏸</div>
+    </div>
+  </div>
+
+  <div id="malus-banner" class="hidden"></div>
+  <div id="combo-badge" class="hidden"></div>
+  <div id="toast-container"></div>
+
+  <div id="controls">
+    <div class="ctrl-btn" id="btn-left">◀</div>
+    <div class="ctrl-btn" id="btn-right">▶</div>
+  </div>
+
+  <!-- Ecran d'accueil -->
+  <div class="overlay" id="screen-start">
+    <h1>ASCENSION</h1>
+    <div class="sub">Grimpe le plus haut possible, ramasse des pièces,<br>enchaîne les combos, évite les malus.</div>
+    <div class="streak-line" id="start-streak">🔥 0 jour de suite</div>
+    <div class="account-line hidden" id="start-account"></div>
+    <button class="big-btn" id="btn-play">Jouer</button>
+    <button class="ghost-btn" id="btn-shop-start">🏪 Boutique &amp; Défis</button>
+    <button class="ghost-btn" id="btn-lb-start">🏆 Classement</button>
+    <button class="ghost-btn hidden" id="btn-account-start">👤 Se connecter / Créer un compte</button>
+  </div>
+
+  <!-- Ecran game over -->
+  <div class="overlay hidden" id="screen-over">
+    <h1 style="font-size:28px;">Chute !</h1>
+    <div class="stat-row">
+      <div class="stat"><b id="over-alt">0</b><span>Altitude (m)</span></div>
+      <div class="stat"><b id="over-coins">0</b><span>Pièces</span></div>
+      <div class="stat"><b id="over-combo">x1</b><span>Meilleur combo</span></div>
+      <div class="stat"><b id="over-best">0</b><span>Record (m)</span></div>
+    </div>
+    <div class="account-line hidden" id="over-account"></div>
+    <button class="big-btn" id="btn-save-score" style="margin-bottom:8px;">Enregistrer mon score</button>
+    <div style="display:flex;gap:8px;">
+      <button class="ghost-btn" id="btn-retry">Rejouer</button>
+      <button class="ghost-btn" id="btn-lb-over">🏆 Classement</button>
+    </div>
+    <button class="ghost-btn" id="btn-shop-over">🏪 Boutique &amp; Défis</button>
+  </div>
+
+  <!-- Ecran classement -->
+  <div class="overlay hidden" id="screen-leaderboard">
+    <div id="shop-panel">
+      <h2>🏆 Classement</h2>
+      <div class="wallet-line" style="color:var(--menthe);">Meilleures altitudes, tous les joueurs</div>
+      <div id="lb-list"><div class="lb-empty">Chargement…</div></div>
+      <button class="ghost-btn" id="btn-lb-close" style="width:100%;margin-top:6px;">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Ecran compte (inscription / connexion) -->
+  <div class="overlay hidden" id="screen-auth">
+    <h1 style="font-size:26px;">Ton compte</h1>
+    <div class="sub" id="auth-sub">Crée un compte pour apparaître dans le classement.</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-signup">Créer un compte</div>
+      <div class="auth-tab" id="tab-login">Se connecter</div>
+    </div>
+    <input class="auth-field" id="auth-pseudo" maxlength="16" placeholder="Pseudo (visible au classement)">
+    <input class="auth-field" id="auth-email" type="email" placeholder="Adresse e-mail" autocomplete="username">
+    <input class="auth-field" id="auth-password" type="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
+    <div class="auth-error" id="auth-error"></div>
+    <button class="big-btn" id="btn-auth-submit">Créer mon compte</button>
+    <button class="ghost-btn" id="btn-auth-close">Annuler</button>
+  </div>
+
+  <!-- Ecran pause -->
+  <div class="overlay hidden" id="screen-pause">
+    <h1 style="font-size:26px;">Pause</h1>
+    <button class="big-btn" id="btn-resume">Reprendre</button>
+    <button class="ghost-btn" id="btn-shop-pause">🏪 Boutique &amp; Défis</button>
+  </div>
+
+  <!-- Boutique -->
+  <div class="overlay hidden" id="screen-shop">
+    <div id="shop-panel">
+      <h2>Boutique</h2>
+      <div class="wallet-line">🪙 <span id="shop-wallet">0</span> pièces</div>
+      <div class="streak-mini" id="shop-streak">🔥 0 jour de suite</div>
+
+      <h3>Défis du jour</h3>
+      <div id="challenge-items"></div>
+
+      <h3>Améliorations</h3>
+      <div id="shop-items"></div>
+
+      <h3>Apparence</h3>
+      <div id="skin-items"></div>
+
+      <button class="ghost-btn" id="btn-shop-close" style="width:100%;margin-top:6px;">Fermer</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Classement en ligne (Firebase Firestore) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  // Remplace ces valeurs par celles de TON projet Firebase (console.firebase.google.com).
+  // Tant que apiKey vaut "REMPLACE_MOI", le classement reste désactivé sans faire planter le jeu.
+  window.FIREBASE_CONFIG = {
+    apiKey: "REMPLACE_MOI",
+    authDomain: "REMPLACE_MOI.firebaseapp.com",
+    projectId: "REMPLACE_MOI",
+    storageBucket: "REMPLACE_MOI.appspot.com",
+    messagingSenderId: "REMPLACE_MOI",
+    appId: "REMPLACE_MOI"
+  };
+</script>
+<script>
+(function(){
+  const app = document.getElementById('app');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR;
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    W = app.clientWidth; H = app.clientHeight;
+    canvas.width = W*DPR; canvas.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Audio ----------
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+    }
+    if(audioCtx && audioCtx.state === 'suspended'){ audioCtx.resume().catch(()=>{}); }
+  }
+  function beep(freq, dur, type, vol, delay){
+    if(!audioCtx) return;
+    type = type||'sine'; vol = vol==null?0.14:vol; delay = delay||0;
+    const t0 = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0+0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0+dur+0.03);
+  }
+  function sfxCoin(){ beep(880,0.09,'triangle',0.12); }
+  function sfxDiamond(){ beep(1200,0.08,'triangle',0.13); beep(1650,0.11,'triangle',0.11,0.06); }
+  function sfxMalus(){ beep(150,0.26,'sawtooth',0.15); }
+  function sfxChest(pt){
+    beep(700,0.08,'square',0.1);
+    beep(1000,0.08,'square',0.1,0.08);
+    beep(pt>25?1700:1300,0.16,'square',0.13,0.16);
+  }
+  function sfxRecord(){ [660,880,1100,1320].forEach((f,i)=>beep(f,0.12,'triangle',0.12,i*0.09)); }
+  function sfxGameOver(){ beep(300,0.3,'sawtooth',0.12); beep(200,0.35,'sawtooth',0.1,0.15); }
+  function sfxChallenge(){ beep(950,0.1,'sine',0.14); beep(1300,0.14,'sine',0.14,0.1); }
+  function sfxLand(){ beep(420,0.05,'sine',0.05); }
+  function vibrate(pattern){
+    try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+  }
+
+  // ---------- Peaux ----------
+  const SKINS = [
+    { id:'default', name:'Classique',     color:'#ffefe0', cost:0 },
+    { id:'aube',    name:'Aube',          color:'#ff9166', cost:60 },
+    { id:'menthe',  name:'Menthe',        color:'#4ecdc4', cost:60 },
+    { id:'or',      name:'Doré',          color:'#ffd166', cost:100 },
+    { id:'nuit',    name:'Nuit étoilée',  color:'#8d8fc7', cost:140 },
+  ];
+
+  // ---------- Améliorations ----------
+  const UPGRADES = {
+    jump:   { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9 },
+    magnet: { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1 },
+    shield: { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:2, baseCost:50, costMult:1.8 },
+    life:   { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:2, baseCost:90, costMult:2.0 },
+  };
+
+  // ---------- Défis quotidiens ----------
+  const CHALLENGE_POOL = [
+    { type:'coins_run',    make:()=>rnd(15,35),  label:g=>`Ramasse ${g} pièces en une partie`, reward:g=>Math.max(15,Math.round(g*2.2)) },
+    { type:'altitude_run', make:()=>rnd(100,320),label:g=>`Atteins ${g} m d'altitude en une partie`, reward:g=>Math.max(15,Math.round(g*0.35)) },
+    { type:'combo',        make:()=>rnd(2,4),    label:g=>`Atteins un combo x${g+1}`, reward:g=>18+g*8 },
+    { type:'runs',         make:()=>rnd(2,4),    label:g=>`Termine ${g} parties`, reward:g=>12*g },
+    { type:'diamonds',     make:()=>rnd(2,5),    label:g=>`Ramasse ${g} diamants`, reward:g=>10*g },
+    { type:'chests',       make:()=>rnd(1,3),    label:g=>`Ouvre ${g} coffres mystère`, reward:g=>16*g },
+  ];
+  function rnd(a,b){ return Math.floor(a+Math.random()*(b-a+1)); }
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function yesterdayStr(){
+    const d = new Date(); d.setDate(d.getDate()-1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function generateDailyChallenges(){
+    const pool = CHALLENGE_POOL.slice();
+    const picked = [];
+    while(picked.length < 3 && pool.length){
+      const idx = Math.floor(Math.random()*pool.length);
+      const tpl = pool.splice(idx,1)[0];
+      const g = tpl.make();
+      picked.push({ type:tpl.type, goal:g, label:tpl.label(g+ (tpl.type==='combo'?1:0)), reward:tpl.reward(g), progress:0, done:false });
+    }
+    return picked;
+  }
+
+  // ---------- Sauvegarde locale ----------
+  let wallet = {
+    coins:0, best:0, jump:0, magnet:0, shield:0, life:0,
+    skin:'default', unlockedSkins:['default'],
+    daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null }
+  };
+
+  function loadWallet(){
+    try{
+      const raw = localStorage.getItem('ascension_save');
+      if(raw){
+        const parsed = JSON.parse(raw);
+        Object.assign(wallet, parsed);
+        if(!wallet.unlockedSkins) wallet.unlockedSkins = ['default'];
+        if(!wallet.daily) wallet.daily = { date:null, challenges:[], streak:0, lastPlayedDate:null };
+      }
+    }catch(e){ /* rien à charger */ }
+    refreshDaily();
+    refreshHud();
+  }
+  function saveWallet(){
+    try{ localStorage.setItem('ascension_save', JSON.stringify(wallet)); }
+    catch(e){ console.warn('sauvegarde impossible', e); }
+  }
+
+  function refreshDaily(){
+    const today = todayStr();
+    if(wallet.daily.date !== today){
+      // nouveau jour : régénère les défis, met à jour la série
+      if(wallet.daily.lastPlayedDate === yesterdayStr()){
+        wallet.daily.streak = (wallet.daily.streak||0) + 1;
+      } else if(wallet.daily.lastPlayedDate !== today){
+        wallet.daily.streak = wallet.daily.lastPlayedDate ? 1 : (wallet.daily.streak||0);
+      }
+      wallet.daily.date = today;
+      wallet.daily.challenges = generateDailyChallenges();
+      saveWallet();
+    }
+    document.getElementById('start-streak').textContent = `🔥 ${wallet.daily.streak||0} jour${(wallet.daily.streak||0)>1?'s':''} de suite`;
+    document.getElementById('shop-streak').textContent = `🔥 ${wallet.daily.streak||0} jour${(wallet.daily.streak||0)>1?'s':''} de suite`;
+  }
+  function markPlayedToday(){
+    wallet.daily.lastPlayedDate = todayStr();
+    saveWallet();
+  }
+
+  // ---------- Classement en ligne + comptes (Firebase Auth + Firestore) ----------
+  let fbDb = null;
+  let fbAuth = null;
+  let fbReady = false;
+  let currentUser = null;
+  let authReturnTo = 'start';
+  let authAutoSubmit = false;
+
+  try{
+    const cfg = window.FIREBASE_CONFIG;
+    if(cfg && cfg.apiKey && cfg.apiKey !== 'REMPLACE_MOI' && window.firebase){
+      firebase.initializeApp(cfg);
+      fbDb = firebase.firestore();
+      fbAuth = firebase.auth();
+      fbReady = true;
+      fbAuth.onAuthStateChanged(user=>{
+        currentUser = user;
+        updateAccountUI();
+        if(user && authAutoSubmit){
+          authAutoSubmit = false;
+          const altEl = document.getElementById('over-alt');
+          if(!document.getElementById('screen-over').classList.contains('hidden')){
+            doSaveScore();
+          }
+        }
+      });
+    }
+  }catch(e){ console.warn('Firebase indisponible', e); fbReady = false; }
+
+  function updateAccountUI(){
+    const startEl = document.getElementById('start-account');
+    const startBtn = document.getElementById('btn-account-start');
+    const overEl = document.getElementById('over-account');
+    const saveBtn = document.getElementById('btn-save-score');
+    if(!fbReady){
+      startEl.classList.add('hidden'); startBtn.classList.add('hidden'); overEl.classList.add('hidden');
+      return;
+    }
+    startBtn.classList.remove('hidden');
+    if(currentUser){
+      const pseudo = currentUser.displayName || 'Joueur';
+      startEl.textContent = `Connecté : ${pseudo}`;
+      startEl.classList.remove('hidden');
+      startBtn.textContent = '🚪 Déconnexion';
+      overEl.textContent = `Le score sera enregistré sous : ${pseudo}`;
+      overEl.classList.remove('hidden');
+      saveBtn.textContent = 'Enregistrer mon score';
+    } else {
+      startEl.classList.add('hidden');
+      startBtn.textContent = '👤 Se connecter / Créer un compte';
+      overEl.textContent = 'Connecte-toi pour apparaître au classement';
+      overEl.classList.remove('hidden');
+      saveBtn.textContent = 'Se connecter pour enregistrer';
+    }
+  }
+
+  function submitScore(altitude){
+    if(!fbReady || !currentUser) return Promise.resolve(false);
+    return fbDb.collection('scores').add({
+      uid: currentUser.uid,
+      name: (currentUser.displayName||'Joueur').slice(0,16),
+      altitude: Math.max(0, Math.floor(altitude)),
+      ts: Date.now()
+    }).then(()=>true).catch(err=>{ console.warn('Envoi du score impossible', err); return false; });
+  }
+
+  function renderLeaderboard(){
+    const list = document.getElementById('lb-list');
+    if(!fbReady){
+      list.innerHTML = '<div class="lb-empty">Classement pas encore activé pour ce jeu.</div>';
+      return;
+    }
+    list.innerHTML = '<div class="lb-empty">Chargement…</div>';
+    fbDb.collection('scores').orderBy('altitude','desc').limit(20).get()
+      .then(snap=>{
+        if(snap.empty){
+          list.innerHTML = '<div class="lb-empty">Aucun score pour le moment. Sois le premier !</div>';
+          return;
+        }
+        list.innerHTML = '';
+        let rank = 0;
+        snap.forEach(doc=>{
+          rank += 1;
+          const d = doc.data();
+          const row = document.createElement('div');
+          row.className = 'lb-row' + (currentUser && d.uid===currentUser.uid ? ' me' : '');
+          row.innerHTML = `
+            <div class="lb-rank">${rank}</div>
+            <div class="lb-name">${escapeHtml(d.name||'Joueur')}</div>
+            <div class="lb-alt">${d.altitude} m</div>
+          `;
+          list.appendChild(row);
+        });
+      })
+      .catch(err=>{
+        console.warn('Chargement du classement impossible', err);
+        list.innerHTML = '<div class="lb-empty">Classement indisponible pour le moment.</div>';
+      });
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function costFor(key){
+    const u = UPGRADES[key];
+    const lvl = wallet[key];
+    return Math.round(u.baseCost * Math.pow(u.costMult, lvl));
+  }
+
+  function showToast(text){
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = text;
+    container.appendChild(el);
+    setTimeout(()=>{ el.classList.add('fade'); setTimeout(()=> el.remove(), 450); }, 2200);
+  }
+
+  function updateChallenge(type, value, mode){
+    mode = mode || 'max';
+    let any = false;
+    for(const c of wallet.daily.challenges){
+      if(c.type !== type || c.done) continue;
+      if(mode === 'max') c.progress = Math.max(c.progress, value);
+      else c.progress += value;
+      if(c.progress >= c.goal){
+        c.progress = c.goal;
+        c.done = true;
+        wallet.coins += c.reward;
+        showToast(`✅ Défi complété : +${c.reward} pièces`);
+        sfxChallenge();
+        any = true;
+      }
+    }
+    if(any){ saveWallet(); refreshHud(); }
+  }
+
+  function renderShop(){
+    document.getElementById('shop-wallet').textContent = wallet.coins;
+
+    // Défis
+    const cwrap = document.getElementById('challenge-items');
+    cwrap.innerHTML = '';
+    wallet.daily.challenges.forEach(c=>{
+      const pct = Math.min(100, Math.round(100*c.progress/c.goal));
+      const div = document.createElement('div');
+      div.className = 'challenge' + (c.done ? ' done' : '');
+      div.innerHTML = `
+        <div class="top-row">
+          <b>${c.done?'✅ ':''}${c.label}</b>
+          <span class="reward">🪙 ${c.reward}</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;"></div></div>
+      `;
+      cwrap.appendChild(div);
+    });
+
+    // Améliorations
+    const wrap = document.getElementById('shop-items');
+    wrap.innerHTML = '';
+    Object.keys(UPGRADES).forEach(key=>{
+      const u = UPGRADES[key];
+      const lvl = wallet[key];
+      const maxed = lvl >= u.max;
+      const cost = maxed ? 0 : costFor(key);
+      const div = document.createElement('div');
+      div.className='item';
+      div.innerHTML = `
+        <div class="ic" style="background:${u.color}22;color:${u.color};border-color:${u.color}55;">${u.icon}</div>
+        <div class="txt">
+          <b>${u.name} ${u.max>1 ? `(Niv. ${lvl}/${u.max})`:''}</b>
+          <small>${u.desc}</small>
+        </div>
+        <button class="buy-btn ${maxed?'maxed':''}" ${maxed || wallet.coins<cost ? 'disabled':''}>
+          ${maxed ? 'Max' : '🪙 '+cost}
+        </button>
+      `;
+      const btn = div.querySelector('button');
+      if(!maxed){
+        btn.addEventListener('click', ()=>{
+          if(wallet.coins >= cost){
+            wallet.coins -= cost;
+            wallet[key] += 1;
+            saveWallet();
+            refreshHud();
+            renderShop();
+          }
+        });
+      }
+      wrap.appendChild(div);
+    });
+
+    // Apparence
+    const swrap = document.getElementById('skin-items');
+    swrap.innerHTML = '';
+    SKINS.forEach(s=>{
+      const owned = wallet.unlockedSkins.includes(s.id);
+      const equipped = wallet.skin === s.id;
+      const div = document.createElement('div');
+      div.className='item';
+      div.innerHTML = `
+        <div class="ic" style="background:${s.color}33;color:${s.color};border-color:${s.color};">●</div>
+        <div class="txt">
+          <b>${s.name}</b>
+          <small>${owned ? (equipped?'Équipée':'Débloquée') : 'Apparence cosmétique'}</small>
+        </div>
+        <button class="buy-btn ${equipped?'equipped':''}" ${equipped?'disabled':''}>
+          ${equipped ? 'Équipée' : (owned ? 'Équiper' : '🪙 '+s.cost)}
+        </button>
+      `;
+      const btn = div.querySelector('button');
+      if(!equipped){
+        btn.addEventListener('click', ()=>{
+          if(owned){
+            wallet.skin = s.id;
+          } else if(wallet.coins >= s.cost){
+            wallet.coins -= s.cost;
+            wallet.unlockedSkins.push(s.id);
+            wallet.skin = s.id;
+          } else return;
+          saveWallet(); refreshHud(); renderShop();
+        });
+      }
+      swrap.appendChild(div);
+    });
+  }
+
+  function refreshHud(){
+    document.getElementById('hud-coins').textContent = wallet.coins;
+  }
+
+  // ---------- Navigation d'écrans ----------
+  const screens = ['start','over','pause','shop','leaderboard','auth'];
+  function showScreen(name){
+    screens.forEach(s=>{
+      document.getElementById('screen-'+s).classList.toggle('hidden', s!==name);
+    });
+  }
+  function hideAllScreens(){
+    screens.forEach(s=> document.getElementById('screen-'+s).classList.add('hidden'));
+  }
+
+  let shopReturnTo = 'start';
+  document.getElementById('btn-shop-open').onclick = ()=>{ pauseGame(); renderShop(); showScreen('shop'); shopReturnTo='pause'; };
+  document.getElementById('btn-shop-start').onclick = ()=>{ renderShop(); showScreen('shop'); shopReturnTo='start'; };
+  document.getElementById('btn-shop-over').onclick  = ()=>{ renderShop(); showScreen('shop'); shopReturnTo='over'; };
+  document.getElementById('btn-shop-pause').onclick = ()=>{ renderShop(); showScreen('shop'); shopReturnTo='pause'; };
+  document.getElementById('btn-shop-close').onclick = ()=>{
+    if(shopReturnTo==='start'){ showScreen('start'); }
+    else if(shopReturnTo==='over'){ showScreen('over'); }
+    else { showScreen('pause'); }
+  };
+
+  document.getElementById('btn-pause').onclick = ()=>{ if(running){ pauseGame(); showScreen('pause'); } };
+  document.getElementById('btn-resume').onclick = ()=>{ hideAllScreens(); resumeGame(); };
+  document.getElementById('btn-play').onclick = ()=>{ ensureAudio(); hideAllScreens(); startGame(); };
+  document.getElementById('btn-retry').onclick = ()=>{ ensureAudio(); hideAllScreens(); startGame(); };
+
+  let lbReturnTo = 'start';
+  document.getElementById('btn-lb-start').onclick = ()=>{ renderLeaderboard(); showScreen('leaderboard'); lbReturnTo='start'; };
+  document.getElementById('btn-lb-over').onclick  = ()=>{ renderLeaderboard(); showScreen('leaderboard'); lbReturnTo='over'; };
+  document.getElementById('btn-lb-close').onclick = ()=>{ showScreen(lbReturnTo); };
+
+  function doSaveScore(){
+    const btn = document.getElementById('btn-save-score');
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    submitScore(document.getElementById('over-alt').textContent).then(ok=>{
+      btn.disabled = false;
+      btn.textContent = ok ? '✅ Score enregistré' : '❌ Échec, réessaie';
+    });
+  }
+  document.getElementById('btn-save-score').onclick = ()=>{
+    if(!fbReady) return;
+    if(!currentUser){
+      authReturnTo = 'over';
+      authAutoSubmit = true;
+      openAuthScreen('signup');
+      return;
+    }
+    doSaveScore();
+  };
+
+  // ---------- Ecran compte ----------
+  let authMode = 'signup';
+  function openAuthScreen(mode){
+    authMode = mode || 'signup';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('auth-password').value = '';
+    setAuthTab(authMode);
+    showScreen('auth');
+  }
+  function setAuthTab(mode){
+    authMode = mode;
+    document.getElementById('tab-signup').classList.toggle('active', mode==='signup');
+    document.getElementById('tab-login').classList.toggle('active', mode==='login');
+    document.getElementById('auth-pseudo').classList.toggle('hidden', mode==='login');
+    document.getElementById('btn-auth-submit').textContent = mode==='signup' ? 'Créer mon compte' : 'Se connecter';
+    document.getElementById('auth-sub').textContent = mode==='signup'
+      ? 'Crée un compte pour apparaître dans le classement.'
+      : 'Reconnecte-toi à ton compte existant.';
+  }
+  document.getElementById('tab-signup').onclick = ()=> setAuthTab('signup');
+  document.getElementById('tab-login').onclick = ()=> setAuthTab('login');
+  document.getElementById('btn-account-start').onclick = ()=>{
+    if(currentUser){ fbAuth.signOut(); return; }
+    authReturnTo = 'start'; authAutoSubmit = false;
+    openAuthScreen('signup');
+  };
+  document.getElementById('btn-auth-close').onclick = ()=>{ authAutoSubmit = false; showScreen(authReturnTo); };
+
+  document.getElementById('btn-auth-submit').onclick = ()=>{
+    if(!fbReady) return;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+    const email = document.getElementById('auth-email').value.trim();
+    const pass = document.getElementById('auth-password').value;
+    const pseudo = document.getElementById('auth-pseudo').value.trim().slice(0,16);
+    const btn = document.getElementById('btn-auth-submit');
+
+    if(!email || !pass){ errEl.textContent = 'Remplis l\'e-mail et le mot de passe.'; return; }
+    if(pass.length < 6){ errEl.textContent = 'Le mot de passe doit faire 6 caractères minimum.'; return; }
+    if(authMode==='signup' && !pseudo){ errEl.textContent = 'Choisis un pseudo.'; return; }
+
+    btn.disabled = true; btn.textContent = '…';
+    if(authMode==='signup'){
+      fbAuth.createUserWithEmailAndPassword(email, pass)
+        .then(cred=> cred.user.updateProfile({ displayName: pseudo }))
+        .then(()=>{ btn.disabled=false; setAuthTab(authMode); showScreen(authReturnTo); })
+        .catch(err=>{
+          btn.disabled = false; btn.textContent = 'Créer mon compte';
+          errEl.textContent = authErrorMessage(err);
+        });
+    } else {
+      fbAuth.signInWithEmailAndPassword(email, pass)
+        .then(()=>{ btn.disabled=false; setAuthTab(authMode); showScreen(authReturnTo); })
+        .catch(err=>{
+          btn.disabled = false; btn.textContent = 'Se connecter';
+          errEl.textContent = authErrorMessage(err);
+        });
+    }
+  };
+  function authErrorMessage(err){
+    const c = err && err.code;
+    if(c==='auth/email-already-in-use') return 'Cet e-mail a déjà un compte — essaie de te connecter.';
+    if(c==='auth/invalid-email') return 'Adresse e-mail invalide.';
+    if(c==='auth/weak-password') return 'Mot de passe trop faible.';
+    if(c==='auth/user-not-found' || c==='auth/wrong-password' || c==='auth/invalid-credential') return 'E-mail ou mot de passe incorrect.';
+    return 'Une erreur est survenue, réessaie.';
+  }
+
+  // ---------- Contrôles ----------
+  const keys = { left:false, right:false };
+  window.addEventListener('keydown', e=>{
+    if(['ArrowLeft','q','Q','a','A'].includes(e.key)) keys.left = true;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = true;
+  });
+  window.addEventListener('keyup', e=>{
+    if(['ArrowLeft','q','Q','a','A'].includes(e.key)) keys.left = false;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = false;
+  });
+  function bindHold(id, prop){
+    const el = document.getElementById(id);
+    const on = ev=>{ ev.preventDefault(); keys[prop]=true; ensureAudio(); };
+    const off = ev=>{ ev.preventDefault(); keys[prop]=false; };
+    el.addEventListener('touchstart', on, {passive:false});
+    el.addEventListener('touchend', off, {passive:false});
+    el.addEventListener('touchcancel', off, {passive:false});
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindHold('btn-left','left');
+  bindHold('btn-right','right');
+
+  // ---------- Constantes de jeu ----------
+  const GRAVITY = 1600;
+  const MOVE_ACCEL = 2600;
+  const MOVE_MAX = 340;
+  const FRICTION = 1800;
+  const PLAT_W = 58, PLAT_H = 16;
+
+  const MALUS_TYPES = {
+    lourd:   { label:"Lourd !",       color:"#ef476f", icon:"🪨", dur:4 },
+    glace:   { label:"Glissant !",    color:"#5ac8f2", icon:"🧊", dur:4 },
+    inverse: { label:"Inversé !",     color:"#c04ee0", icon:"🌀", dur:3.5 },
+    vol:     { label:"Pièces volées !", color:"#ff9166", icon:"👻", dur:0 },
+  };
+
+  let player, platforms, coins, diamonds, chests, malusOrbs, particles;
+  let camY, score, runCoins, running, gameStarted;
+  let activeMalus = null;
+  let shieldLeft = 0, lifeLeft = 0;
+  let lastTime = 0, animId = null;
+  let spawnMaxY = 0;
+  let runStartY = 0;
+  let combo = 0, comboMax = 0, diamondsThisRun = 0, chestsThisRun = 0;
+  let recordCelebrated = false;
+  let shakeTime = 0, shakeMag = 0;
+
+  function resetRun(){
+    platforms = []; coins = []; diamonds = []; chests = []; malusOrbs = []; particles = [];
+    camY = 0; score = 0; runCoins = 0;
+    activeMalus = null;
+    shieldLeft = wallet.shield;
+    lifeLeft = wallet.life;
+    combo = 0; comboMax = 0; diamondsThisRun = 0; chestsThisRun = 0;
+    recordCelebrated = false;
+    shakeTime = 0; shakeMag = 0;
+
+    platforms.push({ x: W/2 - PLAT_W/2, y: H - 80, w:PLAT_W, type:'normal', dir:1, broken:false });
+    spawnMaxY = H - 80;
+    runStartY = H - 80;
+    generateUpTo(-H*2.5);
+
+    player = { x: W/2, y: H-110, vx:0, vy:-600, r:16, invul:0 };
+  }
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  function generateUpTo(targetY){
+    let y = spawnMaxY;
+    while(y > targetY){
+      // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude
+      const altHere = Math.max(0, (runStartY - y) / 10);
+      const t = Math.min(1, altHere / 450);
+
+      const gap = rand(52, 88) + t*46;              // écarts plus grands en montant
+      y -= gap;
+      const x = rand(20, W-20-PLAT_W);
+      const roll = Math.random();
+      let type = 'normal';
+      const malusChance = 0.13 + t*0.14;             // jusqu'à 27% de plateformes à pics
+      const crumbleChance = malusChance + 0.12 + t*0.06;
+      const movingChance = crumbleChance + 0.12 + t*0.10;
+      if(roll < malusChance) type='malus';
+      else if(roll < crumbleChance) type='crumble';
+      else if(roll < movingChance) type='moving';
+
+      const platSpeed = rand(45,95) + t*70;          // plateformes mobiles plus rapides
+      platforms.push({ x, y, w:PLAT_W, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed });
+
+      if(Math.random() < 0.5){
+        coins.push({ x: x + PLAT_W/2 + rand(-10,10), y: y - rand(24,40), r:9, taken:false });
+      }
+      // diamants : plus fréquents près des plateformes à risque
+      const diamondChance = type==='malus' ? 0.4 : 0.035;
+      if(Math.random() < diamondChance){
+        diamonds.push({ x: x + PLAT_W/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
+      }
+      const orbChance = 0.08 + t*0.09;               // plus d'orbes malus en altitude
+      if(type!=='malus' && Math.random() < orbChance){
+        const ks = Object.keys(MALUS_TYPES);
+        const mt = ks[Math.floor(Math.random()*ks.length)];
+        malusOrbs.push({ x: rand(24,W-24), y: y - rand(50,90), r:13, type:mt, taken:false });
+      }
+      // coffre mystère, rare (un peu plus généreux en altitude pour compenser la difficulté)
+      if(Math.random() < 0.03 + t*0.015){
+        chests.push({ x: rand(30,W-30), y: y - rand(40,70), r:14, taken:false });
+      }
+    }
+    spawnMaxY = y;
+  }
+
+  function startGame(){
+    resetRun();
+    running = true;
+    gameStarted = true;
+    lastTime = performance.now();
+    updateChallenge('runs', 1, 'add');
+    markPlayedToday();
+    if(animId) cancelAnimationFrame(animId);
+    loop(lastTime);
+  }
+
+  function pauseGame(){ running = false; }
+  function resumeGame(){
+    if(!gameStarted) return;
+    running = true;
+    lastTime = performance.now();
+    loop(lastTime);
+  }
+
+  function flashBanner(text, color){
+    const banner = document.getElementById('malus-banner');
+    banner.style.background = color;
+    banner.innerHTML = text;
+    banner.classList.remove('hidden');
+    clearTimeout(flashBanner._t);
+    flashBanner._t = setTimeout(()=> banner.classList.add('hidden'), 1150);
+  }
+
+  function addFloatText(x, y, text, color){
+    particles.push({ kind:'text', x, y, text, color, life:0.9, vy:-55 });
+  }
+  function addBurst(x, y, color, n){
+    for(let i=0;i<(n||8);i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = rand(60,180);
+      particles.push({ kind:'spark', x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:0.5, color });
+    }
+  }
+
+  function triggerShake(mag, dur){
+    shakeMag = Math.max(shakeMag, mag);
+    shakeTime = Math.max(shakeTime, dur);
+  }
+
+  function landOnPlatform(type){
+    if(type !== 'malus'){
+      combo += 1;
+      comboMax = Math.max(comboMax, combo);
+      const tier = Math.floor(combo/3); // niveau de multiplicateur atteint
+      updateChallenge('combo', tier+1, 'max');
+    }
+  }
+
+  function comboMultiplier(){
+    return Math.min(4, 1 + Math.floor(combo/3));
+  }
+
+  function applyMalus(type){
+    combo = 0;
+    if(shieldLeft > 0){
+      shieldLeft -= 1;
+      flashBanner('🛡️ Bouclier absorbé !', 'rgba(141,143,199,0.92)');
+      return;
+    }
+    if(type === 'vol'){
+      const lost = Math.min(runCoins, 5 + Math.floor(runCoins*0.2));
+      runCoins -= lost;
+      refreshHud();
+    } else {
+      activeMalus = { type, timeLeft: MALUS_TYPES[type].dur };
+    }
+    const m = MALUS_TYPES[type];
+    flashBanner(`${m.icon} ${m.label}`, m.color+'ee');
+    sfxMalus();
+    triggerShake(7, 0.28);
+    vibrate(110);
+  }
+
+  function endRun(){
+    running = false;
+    wallet.coins += runCoins;
+    const alt = Math.floor(score/10);
+    updateChallenge('altitude_run', alt, 'max');
+    updateChallenge('coins_run', runCoins, 'max');
+    const isNewRecord = alt > wallet.best;
+    wallet.best = Math.max(wallet.best, alt);
+    saveWallet();
+    refreshHud();
+    sfxGameOver();
+    vibrate([70,40,70]);
+    document.getElementById('over-alt').textContent = alt;
+    document.getElementById('over-coins').textContent = runCoins;
+    document.getElementById('over-combo').textContent = 'x'+Math.min(4,1+Math.floor(comboMax/3));
+    document.getElementById('over-best').textContent = wallet.best;
+    const saveBtn = document.getElementById('btn-save-score');
+    saveBtn.disabled = false;
+    updateAccountUI();
+    showScreen('over');
+  }
+
+  function collectCoin(c){
+    c.taken = true;
+    const mult = comboMultiplier();
+    const val = mult;
+    runCoins += val;
+    addFloatText(c.x, c.y - camY, '+'+val, '#ffd166');
+    addBurst(c.x, c.y - camY, '#ffd166', 5);
+    sfxCoin();
+    updateChallenge('coins_run', runCoins, 'max');
+  }
+  function collectDiamond(d){
+    d.taken = true;
+    const mult = comboMultiplier();
+    const val = 5*mult;
+    runCoins += val;
+    diamondsThisRun += 1;
+    addFloatText(d.x, d.y - camY, '+'+val+' 💎', '#7ee8fa');
+    addBurst(d.x, d.y - camY, '#7ee8fa', 10);
+    sfxDiamond();
+    updateChallenge('coins_run', runCoins, 'max');
+    updateChallenge('diamonds', 1, 'add');
+  }
+  function collectChest(ch){
+    ch.taken = true;
+    chestsThisRun += 1;
+    const roll = Math.random();
+    let val;
+    if(roll < 0.70) val = rnd(3,8);
+    else if(roll < 0.95) val = rnd(10,20);
+    else val = rnd(30,60);
+    runCoins += val;
+    addFloatText(ch.x, ch.y - camY, '🎁 +'+val, '#ffd166');
+    addBurst(ch.x, ch.y - camY, '#ffd166', 14);
+    sfxChest(val);
+    if(val>=30) vibrate([40,30,40,30,60]); else vibrate(50);
+    updateChallenge('coins_run', runCoins, 'max');
+    updateChallenge('chests', 1, 'add');
+  }
+
+  function update(dt){
+    if(shakeTime > 0){ shakeTime -= dt; if(shakeTime<0) shakeTime=0; }
+
+    if(activeMalus){
+      activeMalus.timeLeft -= dt;
+      if(activeMalus.timeLeft <= 0) activeMalus = null;
+    }
+
+    let dir = (keys.right?1:0) - (keys.left?1:0);
+    if(activeMalus && activeMalus.type==='inverse') dir = -dir;
+
+    const isIce = activeMalus && activeMalus.type==='glace';
+    const accel = isIce ? MOVE_ACCEL*0.35 : MOVE_ACCEL;
+    const fric = isIce ? FRICTION*0.15 : FRICTION;
+
+    if(dir !== 0){
+      player.vx += dir*accel*dt;
+      player.vx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, player.vx));
+    } else {
+      const s = Math.sign(player.vx);
+      player.vx -= s*fric*dt;
+      if(Math.sign(player.vx) !== s) player.vx = 0;
+    }
+    player.x += player.vx*dt;
+    if(player.x < -player.r) player.x = W+player.r;
+    if(player.x > W+player.r) player.x = -player.r;
+
+    player.vy += GRAVITY*dt;
+    player.y += player.vy*dt;
+    if(player.invul>0) player.invul -= dt;
+
+    const heavyMult = activeMalus && activeMalus.type==='lourd' ? 0.62 : 1;
+    const jumpBoost = 1 + wallet.jump*0.16;
+    const JUMP_FORCE = -760*jumpBoost*heavyMult;
+
+    if(player.vy > 0){
+      for(const p of platforms){
+        if(p.broken) continue;
+        const withinX = player.x+player.r*0.6 > p.x && player.x-player.r*0.6 < p.x+p.w;
+        const withinY = player.y+player.r >= p.y && player.y+player.r <= p.y+PLAT_H+ Math.max(0,player.vy*dt);
+        if(withinX && withinY){
+          if(p.type==='malus'){
+            player.vy = JUMP_FORCE*0.7;
+            applyMalus('lourd');
+          } else if(p.type==='crumble'){
+            player.vy = JUMP_FORCE;
+            p.broken = true;
+            landOnPlatform(p.type);
+            sfxLand();
+          } else {
+            player.vy = JUMP_FORCE;
+            landOnPlatform(p.type);
+            sfxLand();
+          }
+        }
+      }
+    }
+
+    for(const p of platforms){
+      if(p.type==='moving' && !p.broken){
+        p.x += p.dir*p.speed*dt;
+        if(p.x < 10 || p.x+p.w > W-10) p.dir *= -1;
+      }
+    }
+
+    if(wallet.magnet){
+      for(const c of coins){
+        if(c.taken) continue;
+        const dx = player.x-c.x, dy = player.y-c.y;
+        if(Math.hypot(dx,dy) < 130){ c.x += dx*Math.min(1, dt*6); c.y += dy*Math.min(1, dt*6); }
+      }
+      for(const d of diamonds){
+        if(d.taken) continue;
+        const dx = player.x-d.x, dy = player.y-d.y;
+        if(Math.hypot(dx,dy) < 130){ d.x += dx*Math.min(1, dt*6); d.y += dy*Math.min(1, dt*6); }
+      }
+    }
+
+    for(const c of coins){ if(!c.taken && Math.hypot(player.x-c.x, player.y-c.y) < player.r+c.r) collectCoin(c); }
+    for(const d of diamonds){ if(!d.taken && Math.hypot(player.x-d.x, player.y-d.y) < player.r+d.r) collectDiamond(d); }
+    for(const ch of chests){ if(!ch.taken && Math.hypot(player.x-ch.x, player.y-ch.y) < player.r+ch.r) collectChest(ch); }
+    for(const m of malusOrbs){ if(!m.taken && Math.hypot(player.x-m.x, player.y-m.y) < player.r+m.r){ m.taken = true; applyMalus(m.type); } }
+
+    // camera
+    const targetCamTop = player.y - H*0.42;
+    if(targetCamTop < camY){
+      const delta = camY - targetCamTop;
+      camY = targetCamTop;
+      score += delta;
+      const alt = Math.floor(score/10);
+      updateChallenge('altitude_run', alt, 'max');
+      if(!recordCelebrated && wallet.best>0 && alt > wallet.best){
+        recordCelebrated = true;
+        flashBanner('🏆 NOUVEAU RECORD !', 'rgba(255,209,102,0.95)');
+        sfxRecord();
+      }
+      document.getElementById('hud-alt-pill').classList.toggle('record', wallet.best>0 && alt>wallet.best);
+    }
+
+    // particules
+    for(const pt of particles){
+      if(pt.kind==='text'){ pt.y += pt.vy*dt; pt.life -= dt; }
+      else { pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 500*dt; pt.life -= dt; }
+    }
+    particles = particles.filter(p=>p.life>0);
+
+    // combo badge
+    const badge = document.getElementById('combo-badge');
+    if(combo >= 3){
+      badge.classList.remove('hidden');
+      badge.textContent = `🔥 COMBO x${comboMultiplier()}`;
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    // chute
+    if(player.y - camY > H + 60){
+      if(lifeLeft > 0){
+        lifeLeft -= 1;
+        player.y = camY + H*0.3;
+        player.vy = -700;
+        player.invul = 1.6;
+        combo = 0;
+        triggerShake(6, 0.3);
+        vibrate(90);
+      } else {
+        triggerShake(10, 0.4);
+        endRun();
+        return;
+      }
+    }
+
+    const worldTop = camY - H*0.6;
+    generateUpTo(worldTop - 200);
+    platforms = platforms.filter(p => p.y - camY < H + 100);
+    coins = coins.filter(c => !c.taken && c.y - camY < H + 100);
+    diamonds = diamonds.filter(d => !d.taken && d.y - camY < H + 100);
+    chests = chests.filter(c => !c.taken && c.y - camY < H + 100);
+    malusOrbs = malusOrbs.filter(m => !m.taken && m.y - camY < H + 100);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    if(shakeTime > 0){
+      const f = shakeTime;
+      ctx.translate((Math.random()*2-1)*shakeMag*f, (Math.random()*2-1)*shakeMag*f);
+    }
+
+    const t = Math.max(0, Math.min(1, score/6000));
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, mixColor('#0b1026','#ff9166', t*0.5));
+    g.addColorStop(1, mixColor('#241a4a','#3d2c5f', t*0.3));
+    ctx.fillStyle = g;
+    ctx.fillRect(-20,-20,W+40,H+40);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for(let i=0;i<40;i++){
+      const sx = (i*97 % W);
+      const sy = ((i*53 - camY*0.25) % (H+40) + (H+40)) % (H+40) - 20;
+      ctx.globalAlpha = 0.15 + (i%5)*0.08;
+      ctx.beginPath(); ctx.arc(sx, sy, 1.6, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    for(const p of platforms){
+      const y = p.y - camY;
+      if(y < -30 || y > H+30) continue;
+      let color = '#7c6bd6';
+      if(p.type==='malus') color = '#ef476f';
+      else if(p.type==='crumble') color = p.broken ? '#3a3960' : '#e0a458';
+      else if(p.type==='moving') color = '#4ecdc4';
+      ctx.fillStyle = color;
+      roundRect(p.x, y, p.w, PLAT_H, 7);
+      if(p.type==='malus'){
+        ctx.fillStyle='#ffffffcc';
+        for(let i=0;i<4;i++){
+          ctx.beginPath();
+          const sx = p.x+8+i*14;
+          ctx.moveTo(sx, y); ctx.lineTo(sx+6, y-9); ctx.lineTo(sx+12, y); ctx.fill();
+        }
+      }
+    }
+
+    for(const c of coins){
+      if(c.taken) continue;
+      const y = c.y - camY;
+      if(y < -20 || y > H+20) continue;
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.arc(c.x, y, c.r, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#b7862e'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(c.x, y, c.r-3, 0, 7); ctx.stroke();
+    }
+
+    for(const d of diamonds){
+      if(d.taken) continue;
+      const y = d.y - camY;
+      if(y < -20 || y > H+20) continue;
+      ctx.fillStyle = '#7ee8fa';
+      ctx.beginPath();
+      ctx.moveTo(d.x, y-d.r); ctx.lineTo(d.x+d.r, y); ctx.lineTo(d.x, y+d.r); ctx.lineTo(d.x-d.r, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#2aa8c4'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+
+    for(const ch of chests){
+      if(ch.taken) continue;
+      const y = ch.y - camY;
+      if(y < -24 || y > H+24) continue;
+      ctx.fillStyle = '#ffd166';
+      roundRect(ch.x-14, y-11, 28, 22, 5);
+      ctx.fillStyle = '#b7862e';
+      ctx.fillRect(ch.x-2, y-11, 4, 22);
+      ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('🎁', ch.x, y+1);
+    }
+
+    for(const m of malusOrbs){
+      if(m.taken) continue;
+      const y = m.y - camY;
+      if(y < -20 || y > H+20) continue;
+      const info = MALUS_TYPES[m.type];
+      ctx.fillStyle = info.color;
+      ctx.beginPath(); ctx.arc(m.x, y, m.r, 0, 7); ctx.fill();
+      ctx.font = '14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(info.icon, m.x, y+1);
+    }
+
+    // particules
+    for(const pt of particles){
+      if(pt.kind==='text'){
+        ctx.globalAlpha = Math.max(0, pt.life/0.9);
+        ctx.fillStyle = pt.color;
+        ctx.font = '800 15px Trebuchet MS, sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText(pt.text, pt.x, pt.y);
+      } else {
+        ctx.globalAlpha = Math.max(0, pt.life/0.5);
+        ctx.fillStyle = pt.color;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.6, 0, 7); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // joueur
+    const py = player.y - camY;
+    const skinColor = (SKINS.find(s=>s.id===wallet.skin)||SKINS[0]).color;
+    ctx.save();
+    if(player.invul>0 && Math.floor(player.invul*10)%2===0) ctx.globalAlpha = 0.4;
+    ctx.fillStyle = skinColor;
+    ctx.beginPath(); ctx.arc(player.x, py, player.r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0b1026';
+    const eyeOff = player.vx>4?2:(player.vx<-4?-2:0);
+    ctx.beginPath(); ctx.arc(player.x-5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(player.x+5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+    if(shieldLeft>0){
+      ctx.strokeStyle = 'rgba(141,143,199,0.8)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(player.x, py, player.r+6, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
+
+    document.getElementById('hud-alt').textContent = Math.floor(score/10);
+    document.getElementById('hud-coins').textContent = wallet.coins + runCoins;
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function mixColor(c1,c2,t){
+    const a = hexToRgb(c1), b = hexToRgb(c2);
+    const r = Math.round(a[0]+(b[0]-a[0])*t);
+    const g = Math.round(a[1]+(b[1]-a[1])*t);
+    const bl= Math.round(a[2]+(b[2]-a[2])*t);
+    return `rgb(${r},${g},${bl})`;
+  }
+  function hexToRgb(h){
+    h = h.replace('#','');
+    return [parseInt(h.substring(0,2),16),parseInt(h.substring(2,4),16),parseInt(h.substring(4,6),16)];
+  }
+
+  function loop(now){
+    if(!running) return;
+    const dt = Math.min(0.033, (now-lastTime)/1000);
+    lastTime = now;
+    update(dt);
+    draw();
+    animId = requestAnimationFrame(loop);
+  }
+
+  loadWallet();
+})();
+</script>
+</body>
+</html>
