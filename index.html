@@ -277,6 +277,13 @@
     z-index:6;
     letter-spacing:0.5px;
   }
+  #boost-badge{
+    position:absolute;top:124px;left:50%;transform:translateX(-50%);
+    font-weight:900;font-size:13px;
+    text-shadow:0 2px 6px rgba(0,0,0,0.6);
+    z-index:6;
+    letter-spacing:0.3px;
+  }
 
   #toast-container{
     position:absolute;top:56px;left:50%;transform:translateX(-50%);
@@ -314,6 +321,7 @@
 
   <div id="malus-banner" class="hidden"></div>
   <div id="combo-badge" class="hidden"></div>
+  <div id="boost-badge" class="hidden"></div>
   <div id="toast-container"></div>
 
   <div id="controls">
@@ -327,6 +335,7 @@
     <div class="sub">Grimpe le plus haut possible, ramasse des pièces,<br>enchaîne les combos, évite les malus.</div>
     <div class="streak-line" id="start-streak">🔥 0 jour de suite</div>
     <div class="streak-line" id="start-world" style="color:var(--menthe);border-color:rgba(78,205,196,0.3);background:rgba(78,205,196,0.1);">🌍 Collines verdoyantes</div>
+    <div class="streak-line" id="start-hardmode" style="color:var(--malus);border-color:rgba(239,71,105,0.3);background:rgba(239,71,105,0.1);cursor:pointer;">🔥 Mode difficile : verrouillé</div>
     <div class="account-line hidden" id="start-account"></div>
     <button class="big-btn" id="btn-play">Jouer</button>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
@@ -425,6 +434,7 @@
         <div class="shop-tab" data-tab="mondes">🌍 Monde</div>
         <div class="shop-tab" data-tab="ameliorations">⬆️ Améliorations</div>
         <div class="shop-tab" data-tab="apparence">🎨 Apparence</div>
+        <div class="shop-tab" data-tab="progression">📈 Progression</div>
       </div>
 
       <div class="shop-tab-content" data-tab-content="defis">
@@ -441,6 +451,10 @@
 
       <div class="shop-tab-content hidden" data-tab-content="apparence">
         <div id="skin-items"></div>
+      </div>
+
+      <div class="shop-tab-content hidden" data-tab-content="progression">
+        <div id="progression-items"></div>
       </div>
 
       <button class="ghost-btn" id="btn-shop-close" style="width:100%;margin-top:6px;">Fermer</button>
@@ -519,17 +533,64 @@
     try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
   }
 
+  // ---------- Musique d'ambiance (un thème différent par monde) ----------
+  const MUSIC_THEMES = {
+    collines:  { notes:[392,494,587,494], wave:'sine',     tempo:520, vol:0.035 },
+    canyon:    { notes:[330,392,440,392], wave:'triangle', tempo:460, vol:0.035 },
+    volcan:    { notes:[294,349,392,349,440], wave:'sawtooth', tempo:340, vol:0.028 },
+    glacier:   { notes:[523,659,784,659], wave:'sine',     tempo:560, vol:0.03 },
+    abysse:    { notes:[220,261,330,261,196], wave:'triangle', tempo:420, vol:0.03 },
+    nebuleuse: { notes:[349,415,523,466,392], wave:'sine',     tempo:400, vol:0.03 },
+    zenith:    { notes:[392,494,587,698,587,494], wave:'triangle', tempo:300, vol:0.032 },
+  };
+  let musicTimer = null, musicStep = 0;
+  function startMusic(){
+    stopMusic();
+    if(!audioCtx) return;
+    const theme = MUSIC_THEMES[currentWorld().id] || MUSIC_THEMES.collines;
+    musicStep = 0;
+    musicTimer = setInterval(()=>{
+      if(!running) return;
+      const freq = theme.notes[musicStep % theme.notes.length];
+      beep(freq, theme.tempo/1000*0.9, theme.wave, theme.vol);
+      musicStep++;
+    }, theme.tempo);
+  }
+  function stopMusic(){
+    if(musicTimer){ clearInterval(musicTimer); musicTimer = null; }
+  }
+
   // ---------- Peaux ----------
   // ---------- Mondes ----------
+  // Rééquilibrage : les améliorations coûtent cher (jusqu'à ~11k pièces pour tout maxer + tout débloquer),
+  // donc les coinMult des mondes ont été relevés (surtout en fin de progression) pour que le temps
+  // nécessaire reste raisonnable. Combiné aux paliers d'altitude, au bonus de connexion et au prestige,
+  // le gain moyen par partie doit rester cohérent avec le coût des upgrades.
   const WORLDS = [
     { id:'collines', name:'Collines verdoyantes', desc:'Le monde de base, équilibré.', icon:'🌳', color:'#5fd88f', cost:0, diffMult:1.0, coinMult:1.0 },
-    { id:'canyon',   name:'Canyon aride',         desc:'Plateformes plus espacées, plus de malus.', icon:'🏜️', color:'#e0a458', cost:150, diffMult:1.25, coinMult:1.3 },
-    { id:'volcan',   name:'Volcan brûlant',       desc:'Rythme soutenu, peu de répit.', icon:'🌋', color:'#ff5a4e', cost:400, diffMult:1.5, coinMult:1.6 },
-    { id:'glacier',  name:'Glacier extrême',      desc:'Très exigeant, réservé aux experts.', icon:'🧊', color:'#7ee8fa', cost:800, diffMult:1.75, coinMult:2.0 },
-    { id:'abysse',   name:'Abysse céleste',       desc:'Le défi ultime. Peu survivent longtemps.', icon:'🌌', color:'#8d8fc7', cost:1600, diffMult:2.0, coinMult:2.5 },
+    { id:'canyon',   name:'Canyon aride',         desc:'Plateformes plus espacées, plus de malus.', icon:'🏜️', color:'#e0a458', cost:150, diffMult:1.25, coinMult:1.45 },
+    { id:'volcan',   name:'Volcan brûlant',       desc:'Rythme soutenu, peu de répit.', icon:'🌋', color:'#ff5a4e', cost:400, diffMult:1.5, coinMult:1.9 },
+    { id:'glacier',  name:'Glacier extrême',      desc:'Très exigeant, réservé aux experts.', icon:'🧊', color:'#7ee8fa', cost:800, diffMult:1.75, coinMult:2.5 },
+    { id:'abysse',   name:'Abysse céleste',       desc:'Un défi redoutable. Peu survivent longtemps.', icon:'🌌', color:'#8d8fc7', cost:1600, diffMult:2.0, coinMult:3.2 },
+    { id:'nebuleuse',name:'Nébuleuse onirique',   desc:'Gravité étrange, décor psychédélique.', icon:'🌠', color:'#c04ee0', cost:2800, diffMult:2.3, coinMult:4.2 },
+    { id:'zenith',   name:'Zénith',               desc:'Le sommet ultime. Réservé aux téméraires.', icon:'👑', color:'#ffd166', cost:4500, diffMult:2.6, coinMult:5.5 },
   ];
   function currentWorld(){
     return WORLDS.find(w=>w.id===wallet.selectedWorld) || WORLDS[0];
+  }
+
+  // ---------- Mode difficile (transversal à tous les mondes) ----------
+  // Se débloque en atteignant une altitude donnée, puis peut être activé/désactivé librement depuis
+  // l'écran d'accueil. Cumule ses multiplicateurs avec ceux du monde choisi.
+  const HARD_MODE = { unlockAlt: 400, diffMult: 1.4, coinMult: 1.65 };
+  function effectiveDiffMult(){
+    return currentWorld().diffMult * (wallet.hardMode ? HARD_MODE.diffMult : 1);
+  }
+  function effectiveCoinMult(){
+    return currentWorld().coinMult * (wallet.hardMode ? HARD_MODE.coinMult : 1) * prestigeMultiplier();
+  }
+  function prestigeMultiplier(){
+    return 1 + (wallet.prestige||0) * 0.15;
   }
 
   const SKINS = [
@@ -594,6 +655,55 @@
     return picked;
   }
 
+  // ---------- Paliers d'altitude (progression visible) ----------
+  const ALTITUDE_MILESTONES = [
+    { alt:50,   reward:20  }, { alt:100,  reward:35  }, { alt:200,  reward:60  },
+    { alt:350,  reward:90  }, { alt:500,  reward:130 }, { alt:750,  reward:180 },
+    { alt:1000, reward:250 }, { alt:1500, reward:350 }, { alt:2000, reward:480 },
+    { alt:3000, reward:650 }, { alt:4000, reward:850 }, { alt:5000, reward:1100 },
+  ];
+  function nextMilestone(){
+    return ALTITUDE_MILESTONES.find(m => !wallet.milestonesClaimed.includes(m.alt));
+  }
+  function claimMilestones(newBest){
+    let gained = 0;
+    ALTITUDE_MILESTONES.forEach(m=>{
+      if(newBest >= m.alt && !wallet.milestonesClaimed.includes(m.alt)){
+        wallet.milestonesClaimed.push(m.alt);
+        gained += Math.round(m.reward * prestigeMultiplier());
+      }
+    });
+    if(gained > 0){
+      wallet.coins += gained;
+      showToast(`🏅 Palier atteint : +${gained} pièces`);
+      sfxRecord();
+    }
+    return gained;
+  }
+
+  // ---------- Prestige ----------
+  function prestigeRequirementsMet(){
+    const allWorlds = WORLDS.every(w => wallet.unlockedWorlds.includes(w.id));
+    const allUpgrades = Object.keys(UPGRADES).every(k => wallet[k] >= UPGRADES[k].max);
+    return allWorlds && allUpgrades;
+  }
+  function doPrestige(){
+    if(!prestigeRequirementsMet()) return false;
+    if(!window.confirm('Prestige : tes pièces, tes améliorations, tes mondes et tes apparences seront réinitialisés (ton record d\'altitude et ton mode difficile restent acquis). En échange, tu gagnes un bonus de gains permanent. Continuer ?')) return false;
+    wallet.prestige = (wallet.prestige||0) + 1;
+    wallet.coins = 0;
+    Object.keys(UPGRADES).forEach(k=> wallet[k] = 0);
+    wallet.unlockedWorlds = ['collines'];
+    wallet.selectedWorld = 'collines';
+    wallet.unlockedSkins = ['default'];
+    wallet.skin = 'default';
+    saveWallet();
+    refreshHud();
+    showToast(`✨ Prestige ${wallet.prestige} ! Gains permanents ×${prestigeMultiplier().toFixed(2)}`);
+    sfxRecord();
+    return true;
+  }
+
   // ---------- Sauvegarde locale ----------
   let wallet = {
     coins:0, best:0, jump:0, magnet:0, shield:0, life:0,
@@ -601,7 +711,10 @@
     skin:'default', unlockedSkins:['default'],
     selectedWorld:'collines', unlockedWorlds:['collines'],
     settings:{ controlMode:'buttons' },
-    daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null }
+    daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null },
+    prestige:0, milestonesClaimed:[],
+    hardMode:false, hardUnlocked:false, bestHard:0,
+    lastBonusDate:null
   };
 
   function loadWallet(){
@@ -618,6 +731,12 @@
         if(wallet.reduction==null) wallet.reduction = 0;
         if(wallet.luck==null) wallet.luck = 0;
         if(wallet.comboSaver==null) wallet.comboSaver = 0;
+        if(wallet.prestige==null) wallet.prestige = 0;
+        if(!wallet.milestonesClaimed) wallet.milestonesClaimed = [];
+        if(wallet.hardMode==null) wallet.hardMode = false;
+        if(wallet.hardUnlocked==null) wallet.hardUnlocked = wallet.best >= HARD_MODE.unlockAlt;
+        if(wallet.bestHard==null) wallet.bestHard = 0;
+        if(wallet.lastBonusDate===undefined) wallet.lastBonusDate = null;
       }
     }catch(e){ /* rien à charger */ }
     refreshDaily();
@@ -647,7 +766,16 @@
   }
   function markPlayedToday(){
     wallet.daily.lastPlayedDate = todayStr();
+    const today = todayStr();
+    if(wallet.lastBonusDate !== today){
+      wallet.lastBonusDate = today;
+      const streak = wallet.daily.streak||0;
+      const bonus = Math.round(Math.min(20 + streak*8, 150) * prestigeMultiplier());
+      wallet.coins += bonus;
+      showToast(`🔥 Bonus de connexion (série de ${streak} j.) : +${bonus} pièces`);
+    }
     saveWallet();
+    refreshHud();
   }
 
   // ---------- Classement en ligne + comptes (Firebase Auth + Firestore) ----------
@@ -791,8 +919,9 @@
       if(c.progress >= c.goal){
         c.progress = c.goal;
         c.done = true;
-        wallet.coins += c.reward;
-        showToast(`✅ Défi complété : +${c.reward} pièces`);
+        const gained = Math.round(c.reward * prestigeMultiplier());
+        wallet.coins += gained;
+        showToast(`✅ Défi complété : +${gained} pièces`);
         sfxChallenge();
         any = true;
       }
@@ -930,13 +1059,75 @@
       }
       swrap.appendChild(div);
     });
+
+    // Progression : paliers d'altitude + prestige
+    const pwrap = document.getElementById('progression-items');
+    pwrap.innerHTML = '';
+    const pTitle = document.createElement('div');
+    pTitle.className = 'cat-title';
+    pTitle.textContent = '🏅 Paliers d\'altitude';
+    pwrap.appendChild(pTitle);
+    const nm = nextMilestone();
+    ALTITUDE_MILESTONES.forEach(m=>{
+      const done = wallet.milestonesClaimed.includes(m.alt);
+      const isNext = nm && nm.alt === m.alt;
+      const pct = done ? 100 : Math.max(0, Math.min(100, Math.round(100*wallet.best/m.alt)));
+      const div = document.createElement('div');
+      div.className = 'challenge' + (done ? ' done' : '');
+      div.innerHTML = `
+        <div class="top-row">
+          <b>${done?'✅ ':''}${m.alt} m ${isNext?'(prochain)':''}</b>
+          <span class="reward">🪙 ${m.reward}</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;"></div></div>
+      `;
+      pwrap.appendChild(div);
+    });
+
+    const prestTitle = document.createElement('div');
+    prestTitle.className = 'cat-title';
+    prestTitle.textContent = '✨ Prestige';
+    pwrap.appendChild(prestTitle);
+    const ready = prestigeRequirementsMet();
+    const prestDiv = document.createElement('div');
+    prestDiv.className = 'item';
+    prestDiv.innerHTML = `
+      <div class="ic" style="background:#ffd16622;color:var(--or);border-color:#ffd16655;">✨</div>
+      <div class="txt">
+        <b>Niveau de prestige : ${wallet.prestige||0} (gains ×${prestigeMultiplier().toFixed(2)})</b>
+        <small>${ready ? 'Réinitialise pièces, améliorations, mondes et apparences contre un bonus de gains permanent.' : 'Débloque tous les mondes et maxe toutes les améliorations pour prestiger.'}</small>
+      </div>
+      <button class="buy-btn ${ready?'':'maxed'}" ${ready?'':'disabled'}>${ready ? 'Prestiger' : 'Verrouillé'}</button>
+    `;
+    if(ready){
+      prestDiv.querySelector('button').addEventListener('click', ()=>{
+        if(doPrestige()) renderShop();
+      });
+    }
+    pwrap.appendChild(prestDiv);
   }
 
   function refreshHud(){
     document.getElementById('hud-coins').textContent = wallet.coins;
     const w = currentWorld();
     document.getElementById('start-world').textContent = `${w.icon} ${w.name}`;
+    const hardEl = document.getElementById('start-hardmode');
+    if(!wallet.hardUnlocked){
+      hardEl.textContent = `🔒 Mode difficile — débloqué à ${HARD_MODE.unlockAlt} m d'altitude`;
+      hardEl.style.opacity = 0.55;
+    } else {
+      hardEl.style.opacity = 1;
+      hardEl.textContent = wallet.hardMode
+        ? `🔥 Mode difficile : ACTIVÉ (×${HARD_MODE.diffMult.toFixed(1)} risque, ×${HARD_MODE.coinMult.toFixed(2)} gains)`
+        : `Mode difficile : désactivé (appuie pour activer)`;
+    }
   }
+  document.getElementById('start-hardmode').addEventListener('click', ()=>{
+    if(!wallet.hardUnlocked) return;
+    wallet.hardMode = !wallet.hardMode;
+    saveWallet();
+    refreshHud();
+  });
 
   // ---------- Navigation d'écrans ----------
   const screens = ['start','over','pause','shop','leaderboard','auth','settings'];
@@ -1157,9 +1348,10 @@
     vol:     { label:"Pièces volées !", color:"#ff9166", icon:"👻", dur:0 },
   };
 
-  let player, platforms, coins, diamonds, chests, malusOrbs, particles;
+  let player, platforms, coins, diamonds, chests, malusOrbs, particles, enemies, boosts;
   let camY, score, runCoins, running, gameStarted;
   let activeMalus = null;
+  let activeBoost = null; // { type:'double'|'speed', timeLeft }
   let shieldLeft = 0, lifeLeft = 0;
   let lastTime = 0, animId = null;
   let spawnMaxY = 0;
@@ -1169,10 +1361,16 @@
   let noMalusThisRun = true;
   let shakeTime = 0, shakeMag = 0;
 
+  const BOOST_TYPES = {
+    double: { label:'Pièces x2 !', color:'#ffd166', icon:'💰', dur:7 },
+    speed:  { label:'Vitesse boostée !', color:'#4ecdc4', icon:'⚡', dur:7 },
+  };
+
   function resetRun(){
-    platforms = []; coins = []; diamonds = []; chests = []; malusOrbs = []; particles = [];
+    platforms = []; coins = []; diamonds = []; chests = []; malusOrbs = []; particles = []; enemies = []; boosts = [];
     camY = 0; score = 0; runCoins = 0;
     activeMalus = null;
+    activeBoost = null;
     shieldLeft = wallet.shield;
     lifeLeft = wallet.life;
     combo = 0; comboMax = 0; diamondsThisRun = 0; chestsThisRun = 0;
@@ -1180,53 +1378,70 @@
     noMalusThisRun = true;
     shakeTime = 0; shakeMag = 0;
 
-    platforms.push({ x: W/2 - PLAT_W/2, y: H - 80, w:PLAT_W, type:'normal', dir:1, broken:false });
+    platforms.push({ x: W/2 - PLAT_W/2, y: H - 80, w:PLAT_W, type:'normal', dir:1, broken:false, age:0 });
     spawnMaxY = H - 80;
     runStartY = H - 80;
     generateUpTo(-H*2.5);
 
     player = { x: W/2, y: H-110, vx:0, vy:-600, r:16, invul:0 };
+    startMusic();
   }
 
   function rand(a,b){ return a + Math.random()*(b-a); }
 
   function generateUpTo(targetY){
     const world = currentWorld();
+    const diffMult = effectiveDiffMult();
     let y = spawnMaxY;
     while(y > targetY){
       // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude, ajustée par le monde choisi
       const altHere = Math.max(0, (runStartY - y) / 10);
-      const t = Math.min(1, altHere / 450) * world.diffMult;
+      const t = Math.min(1, altHere / 450) * diffMult;
 
       const gap = rand(52, 88) + t*46;              // écarts plus grands en montant
       y -= gap;
-      const x = rand(20, W-20-PLAT_W);
+      // les plateformes rétrécissent progressivement avec l'altitude (jusqu'à -30% de largeur)
+      const plW = Math.round(PLAT_W * (1 - Math.min(0.3, t*0.22)));
+      const x = rand(20, W-20-plW);
       const roll = Math.random();
       let type = 'normal';
-      const malusChance = 0.13 * world.diffMult + t*0.14;             // jusqu'à 27%+ de plateformes à pics
-      const crumbleChance = malusChance + 0.12 + t*0.06;
-      const movingChance = crumbleChance + 0.12 + t*0.10;
+      const malusChance = 0.12 * diffMult + t*0.12;
+      const crumbleChance = malusChance + 0.11 + t*0.05;
+      const movingChance = crumbleChance + 0.11 + t*0.08;
+      const shrinkChance = movingChance + 0.09 + t*0.08;               // plateformes qui rétrécissent au contact
       if(roll < malusChance) type='malus';
       else if(roll < crumbleChance) type='crumble';
       else if(roll < movingChance) type='moving';
+      else if(roll < shrinkChance) type='shrink';
 
-      const platSpeed = (rand(45,95) + t*70) * (0.85 + world.diffMult*0.15); // plateformes mobiles plus rapides
-      platforms.push({ x, y, w:PLAT_W, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed });
+      const platSpeed = (rand(45,95) + t*70) * (0.85 + diffMult*0.15); // plateformes mobiles plus rapides
+      platforms.push({ x, y, w:plW, baseW:plW, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed, age:0, touched:false });
 
       if(Math.random() < 0.5){
-        coins.push({ x: x + PLAT_W/2 + rand(-10,10), y: y - rand(24,40), r:9, taken:false });
+        coins.push({ x: x + plW/2 + rand(-10,10), y: y - rand(24,40), r:9, taken:false });
       }
       // diamants : plus fréquents près des plateformes à risque, boostés par le porte-bonheur
       const luckBoost = wallet.luck||0;
       const diamondChance = (type==='malus' ? 0.4 : 0.035) + luckBoost*0.012;
       if(Math.random() < diamondChance){
-        diamonds.push({ x: x + PLAT_W/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
+        diamonds.push({ x: x + plW/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
       }
-      const orbChance = 0.08 * world.diffMult + t*0.09;               // plus d'orbes malus en altitude
+      const orbChance = 0.07 * diffMult + t*0.08;               // plus d'orbes malus en altitude
       if(type!=='malus' && Math.random() < orbChance){
         const ks = Object.keys(MALUS_TYPES);
         const mt = ks[Math.floor(Math.random()*ks.length)];
         malusOrbs.push({ x: rand(24,W-24), y: y - rand(50,90), r:13, type:mt, taken:false });
+      }
+      // ennemis mobiles, apparaissent progressivement avec l'altitude, à éviter en vol
+      const enemyChance = t*0.10;
+      if(Math.random() < enemyChance){
+        const ex = rand(30, W-30);
+        enemies.push({ x: ex, y: y - rand(60,110), r:12, dir: Math.random()<0.5?-1:1, speed: rand(50,110)+t*60, minX: Math.max(10, ex-90), maxX: Math.min(W-10, ex+90), taken:false });
+      }
+      // bonus temporaires rares (pièces x2 ou vitesse)
+      if(Math.random() < 0.022 + luckBoost*0.006){
+        const bt = Math.random()<0.5 ? 'double' : 'speed';
+        boosts.push({ x: rand(30,W-30), y: y - rand(40,70), r:13, type:bt, taken:false });
       }
       // coffre mystère, rare (un peu plus généreux en altitude, et avec le porte-bonheur)
       if(Math.random() < 0.03 + t*0.015 + luckBoost*0.01){
@@ -1247,11 +1462,12 @@
     loop(lastTime);
   }
 
-  function pauseGame(){ running = false; }
+  function pauseGame(){ running = false; stopMusic(); }
   function resumeGame(){
     if(!gameStarted) return;
     running = true;
     lastTime = performance.now();
+    startMusic();
     loop(lastTime);
   }
 
@@ -1282,11 +1498,17 @@
 
   function landOnPlatform(type){
     if(type !== 'malus'){
+      const prevTier = Math.floor(combo/3);
       combo += 1;
       comboMax = Math.max(comboMax, combo);
       const tier = Math.floor(combo/3); // niveau de multiplicateur atteint
       updateChallenge('combo', tier+1, 'max');
       updateChallenge('combo_max', tier, 'max'); // objectif = tier 3 (combo x4)
+      // retour haptique renforcé quand on franchit un palier de combo, max au combo x4
+      if(tier > prevTier){
+        if(tier >= 3) vibrate([30,20,30,20,50]);
+        else vibrate(25 + tier*10);
+      }
     }
   }
 
@@ -1319,6 +1541,7 @@
 
   function endRun(){
     running = false;
+    stopMusic();
     wallet.coins += runCoins;
     const alt = Math.floor(score/10);
     updateChallenge('altitude_run', alt, 'max');
@@ -1326,6 +1549,12 @@
     updateChallenge('coins_run', runCoins, 'max');
     const isNewRecord = alt > wallet.best;
     wallet.best = Math.max(wallet.best, alt);
+    if(wallet.hardMode) wallet.bestHard = Math.max(wallet.bestHard, alt);
+    if(!wallet.hardUnlocked && wallet.best >= HARD_MODE.unlockAlt){
+      wallet.hardUnlocked = true;
+      showToast('🔥 Mode difficile débloqué !');
+    }
+    claimMilestones(wallet.best);
     saveWallet();
     refreshHud();
     sfxGameOver();
@@ -1341,10 +1570,13 @@
     showScreen('over');
   }
 
+  function boostCoinFactor(){
+    return (activeBoost && activeBoost.type==='double') ? 2 : 1;
+  }
   function collectCoin(c){
     c.taken = true;
     const mult = comboMultiplier();
-    const val = Math.round(mult * currentWorld().coinMult);
+    const val = Math.round(mult * effectiveCoinMult() * boostCoinFactor());
     runCoins += val;
     addFloatText(c.x, c.y - camY, '+'+val, '#ffd166');
     addBurst(c.x, c.y - camY, '#ffd166', 5);
@@ -1354,7 +1586,7 @@
   function collectDiamond(d){
     d.taken = true;
     const mult = comboMultiplier();
-    const val = Math.round(5*mult * currentWorld().coinMult);
+    const val = Math.round(5*mult * effectiveCoinMult() * boostCoinFactor());
     runCoins += val;
     diamondsThisRun += 1;
     addFloatText(d.x, d.y - camY, '+'+val+' 💎', '#7ee8fa');
@@ -1371,7 +1603,7 @@
     if(roll < 0.70) val = rnd(3,8);
     else if(roll < 0.95) val = rnd(10,20);
     else val = rnd(30,60);
-    val = Math.round(val * currentWorld().coinMult);
+    val = Math.round(val * effectiveCoinMult() * boostCoinFactor());
     runCoins += val;
     addFloatText(ch.x, ch.y - camY, '🎁 +'+val, '#ffd166');
     addBurst(ch.x, ch.y - camY, '#ffd166', 14);
@@ -1391,13 +1623,15 @@
 
     const isIce = activeMalus && activeMalus.type==='glace';
     const isInverse = activeMalus && activeMalus.type==='inverse';
+    const speedBoost = (activeBoost && activeBoost.type==='speed') ? 1.35 : 1;
+    const moveMax = MOVE_MAX * speedBoost;
 
     if(wallet.settings.controlMode === 'drag'){
       if(dragActive){
         let targetX = dragX;
         if(isInverse) targetX = W - dragX; // inversé : le doigt fait bouger dans l'autre sens
         const pull = isIce ? 4 : 11;
-        const targetVx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, (targetX - player.x) * pull));
+        const targetVx = Math.max(-moveMax, Math.min(moveMax, (targetX - player.x) * pull));
         player.vx += (targetVx - player.vx) * Math.min(1, dt*9);
       } else {
         const fric = isIce ? FRICTION*0.15 : FRICTION;
@@ -1409,12 +1643,12 @@
       let dir = (keys.right?1:0) - (keys.left?1:0);
       if(isInverse) dir = -dir;
 
-      const accel = isIce ? MOVE_ACCEL*0.35 : MOVE_ACCEL;
+      const accel = (isIce ? MOVE_ACCEL*0.35 : MOVE_ACCEL) * speedBoost;
       const fric = isIce ? FRICTION*0.15 : FRICTION;
 
       if(dir !== 0){
         player.vx += dir*accel*dt;
-        player.vx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, player.vx));
+        player.vx = Math.max(-moveMax, Math.min(moveMax, player.vx));
       } else {
         const s = Math.sign(player.vx);
         player.vx -= s*fric*dt;
@@ -1447,6 +1681,11 @@
             p.broken = true;
             landOnPlatform(p.type);
             sfxLand();
+          } else if(p.type==='shrink'){
+            player.vy = JUMP_FORCE;
+            p.touched = true;
+            landOnPlatform(p.type);
+            sfxLand();
           } else {
             player.vy = JUMP_FORCE;
             landOnPlatform(p.type);
@@ -1457,10 +1696,32 @@
     }
 
     for(const p of platforms){
+      p.age += dt;
       if(p.type==='moving' && !p.broken){
         p.x += p.dir*p.speed*dt;
         if(p.x < 10 || p.x+p.w > W-10) p.dir *= -1;
       }
+      if(p.type==='shrink' && p.touched && !p.broken){
+        p.w = Math.max(16, p.baseW - p.age*13);
+      }
+    }
+
+    // ennemis mobiles : patrouillent et repoussent le joueur au contact
+    for(const en of enemies){
+      en.x += en.dir*en.speed*dt;
+      if(en.x < en.minX || en.x > en.maxX) en.dir *= -1;
+      if(!en.taken && player.invul<=0 && Math.hypot(player.x-en.x, player.y-en.y) < player.r+en.r){
+        hitEnemy(en);
+      }
+    }
+
+    // bonus temporaires
+    for(const b of boosts){
+      if(!b.taken && Math.hypot(player.x-b.x, player.y-b.y) < player.r+b.r) collectBoost(b);
+    }
+    if(activeBoost){
+      activeBoost.timeLeft -= dt;
+      if(activeBoost.timeLeft <= 0) activeBoost = null;
     }
 
     if(wallet.magnet){
@@ -1515,6 +1776,17 @@
       badge.classList.add('hidden');
     }
 
+    // badge de bonus actif
+    const boostBadge = document.getElementById('boost-badge');
+    if(activeBoost){
+      const info = BOOST_TYPES[activeBoost.type];
+      boostBadge.classList.remove('hidden');
+      boostBadge.style.color = info.color;
+      boostBadge.textContent = `${info.icon} ${info.label} (${Math.ceil(activeBoost.timeLeft)}s)`;
+    } else {
+      boostBadge.classList.add('hidden');
+    }
+
     // chute
     if(player.y - camY > H + 60){
       if(lifeLeft > 0){
@@ -1539,6 +1811,37 @@
     diamonds = diamonds.filter(d => !d.taken && d.y - camY < H + 100);
     chests = chests.filter(c => !c.taken && c.y - camY < H + 100);
     malusOrbs = malusOrbs.filter(m => !m.taken && m.y - camY < H + 100);
+    enemies = enemies.filter(e => e.y - camY < H + 100);
+    boosts = boosts.filter(b => !b.taken && b.y - camY < H + 100);
+  }
+
+  function hitEnemy(en){
+    en.taken = true; // retiré après le choc, réapparaîtra plus haut naturellement
+    if(shieldLeft > 0){
+      shieldLeft -= 1;
+      flashBanner('🛡️ Bouclier absorbé !', 'rgba(141,143,199,0.92)');
+      return;
+    }
+    noMalusThisRun = false;
+    combo = wallet.comboSaver ? Math.floor(combo/2) : 0;
+    player.vy = Math.max(player.vy, 260);
+    player.vx = (player.x < en.x ? -1 : 1) * 220;
+    player.invul = 0.9;
+    flashBanner('🦇 Percuté !', '#c04ee0ee');
+    sfxMalus();
+    triggerShake(8, 0.3);
+    vibrate(120);
+  }
+
+  function collectBoost(b){
+    b.taken = true;
+    const info = BOOST_TYPES[b.type];
+    activeBoost = { type:b.type, timeLeft:info.dur };
+    addFloatText(b.x, b.y - camY, info.icon+' '+info.label, info.color);
+    addBurst(b.x, b.y - camY, info.color, 12);
+    sfxChallenge();
+    flashBanner(`${info.icon} ${info.label}`, info.color+'ee');
+    vibrate(60);
   }
 
   function draw(){
@@ -1626,6 +1929,27 @@
       ctx.beginPath(); ctx.arc(m.x, y, m.r, 0, 7); ctx.fill();
       ctx.font = '14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(info.icon, m.x, y+1);
+    }
+
+    for(const b of boosts){
+      if(b.taken) continue;
+      const y = b.y - camY;
+      if(y < -20 || y > H+20) continue;
+      const info = BOOST_TYPES[b.type];
+      ctx.fillStyle = info.color;
+      ctx.beginPath(); ctx.arc(b.x, y, b.r, 0, 7); ctx.fill();
+      ctx.font = '14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(info.icon, b.x, y+1);
+    }
+
+    for(const en of enemies){
+      if(en.taken) continue;
+      const y = en.y - camY;
+      if(y < -20 || y > H+20) continue;
+      ctx.fillStyle = '#c04ee0';
+      ctx.beginPath(); ctx.arc(en.x, y, en.r, 0, 7); ctx.fill();
+      ctx.font = '14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('🦇', en.x, y+1);
     }
 
     // particules
