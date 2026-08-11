@@ -599,6 +599,8 @@
 
       <div class="shop-tab-content hidden" data-tab-content="apparence">
         <div id="skin-items"></div>
+        <h3 style="margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;">Traînées</h3>
+        <div id="trail-items"></div>
       </div>
 
       <div class="shop-tab-content hidden" data-tab-content="progression">
@@ -759,6 +761,16 @@
     { id:'kamikaze', name:'Kamikaze',     color:'#ff1744', cost:0, unlockAch:'hard_300', unlockLabel:"Succès « Casse-cou confirmé » (300 m en mode difficile)" },
   ];
 
+  const TRAILS = [
+    { id:'none',    name:'Aucune',           cost:0 },
+    { id:'etoiles', name:'Poussière d\'étoiles', color:'#ffd166', cost:80,  style:'spark' },
+    { id:'menthe',  name:'Vapeur menthe',    color:'#4ecdc4', cost:80,  style:'spark' },
+    { id:'flamme',  name:'Flammes',          color:'#ff6b4a', cost:140, style:'spark' },
+    { id:'glace',   name:'Cristaux de glace', color:'#7ee8fa', cost:140, style:'spark' },
+    { id:'arcenciel', name:'Arc-en-ciel',    color:'rainbow', cost:0, unlockAch:'prestige_1', unlockLabel:"Succès « Renaissance » (1er prestige)" },
+    { id:'ombre',   name:'Sillage d\'ombre', color:'#8d8fc7', cost:0, unlockAch:'alt_5000', unlockLabel:"Succès « Astronaute » (5000 m)" },
+  ];
+
   // ---------- Améliorations ----------
   const UPGRADES = {
     jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:110, costMult:2.3, category:'progression' },
@@ -864,6 +876,9 @@
         SKINS.forEach(s=>{
           if(s.unlockAch===a.id && !wallet.unlockedSkins.includes(s.id)) wallet.unlockedSkins.push(s.id);
         });
+        TRAILS.forEach(t=>{
+          if(t.unlockAch===a.id && !wallet.unlockedTrails.includes(t.id)) wallet.unlockedTrails.push(t.id);
+        });
       }
     });
     if(unlocked.length){
@@ -911,6 +926,8 @@
     wallet.selectedWorld = 'collines';
     wallet.unlockedSkins = ['default'];
     wallet.skin = 'default';
+    wallet.unlockedTrails = ['none'];
+    wallet.trail = 'none';
     saveWallet();
     refreshHud();
     showToast(`✨ Prestige ${wallet.prestige} ! Gains permanents ×${prestigeMultiplier().toFixed(2)}`);
@@ -923,6 +940,7 @@
     coins:0, best:0, jump:0, magnet:0, shield:0, life:0,
     reduction:0, luck:0, comboSaver:0,
     skin:'default', unlockedSkins:['default'],
+    trail:'none', unlockedTrails:['none'],
     selectedWorld:'collines', unlockedWorlds:['collines'],
     settings:{ controlMode:'buttons' },
     daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null },
@@ -942,6 +960,8 @@
         const parsed = JSON.parse(raw);
         Object.assign(wallet, parsed);
         if(!wallet.unlockedSkins) wallet.unlockedSkins = ['default'];
+        if(!wallet.unlockedTrails) wallet.unlockedTrails = ['none'];
+        if(wallet.trail==null) wallet.trail = 'none';
         if(!wallet.daily) wallet.daily = { date:null, challenges:[], streak:0, lastPlayedDate:null };
         if(!wallet.settings) wallet.settings = { controlMode:'buttons' };
         if(!wallet.unlockedWorlds) wallet.unlockedWorlds = ['collines'];
@@ -1527,6 +1547,48 @@
       swrap.appendChild(div);
     });
 
+    // Traînées cosmétiques
+    const twrap = document.getElementById('trail-items');
+    if(twrap){
+      twrap.innerHTML = '';
+      TRAILS.forEach(t=>{
+        const owned = wallet.unlockedTrails.includes(t.id);
+        const equipped = wallet.trail === t.id;
+        const locked = t.unlockAch && !owned;
+        let sub;
+        if(owned) sub = equipped ? 'Équipée' : 'Débloquée';
+        else if(locked) sub = `🔒 ${t.unlockLabel}`;
+        else sub = 'Traînée cosmétique';
+        const swatch = t.id==='none' ? 'transparent' : (t.color==='rainbow' ? 'linear-gradient(90deg,#ff6b4a,#ffd166,#4ecdc4,#7ee8fa,#c04ee0)' : t.color);
+        const div = document.createElement('div');
+        div.className='item';
+        div.innerHTML = `
+          <div class="ic" style="background:${t.id==='none'?'rgba(255,255,255,0.06)':swatch+'33'};color:${t.color==='rainbow'?'#fff':(t.color||'#fff')};border-color:${t.color==='rainbow'?'#fff':(t.color||'rgba(255,255,255,0.2)')};">${t.id==='none'?'∅':'✨'}</div>
+          <div class="txt">
+            <b>${t.name}</b>
+            <small>${sub}</small>
+          </div>
+          <button class="buy-btn ${equipped?'equipped':''} ${locked?'maxed':''}" ${equipped||locked?'disabled':''}>
+            ${equipped ? 'Équipée' : (owned ? 'Équiper' : (locked ? 'Verrouillé' : (t.cost>0 ? '🪙 '+t.cost : 'Équiper')))}
+          </button>
+        `;
+        const btn = div.querySelector('button');
+        if(!equipped && !locked){
+          btn.addEventListener('click', ()=>{
+            if(owned){
+              wallet.trail = t.id;
+            } else if(wallet.coins >= t.cost){
+              wallet.coins -= t.cost;
+              wallet.unlockedTrails.push(t.id);
+              wallet.trail = t.id;
+            } else return;
+            saveWallet(); refreshHud(); renderShop();
+          });
+        }
+        twrap.appendChild(div);
+      });
+    }
+
     // Progression : paliers d'altitude + prestige
     const pwrap = document.getElementById('progression-items');
     pwrap.innerHTML = '';
@@ -1983,6 +2045,7 @@
   let runElapsed = 0;                 // temps écoulé depuis le début de la partie en cours
   let ghostSamples = [];              // échantillons {t, alt, x} enregistrés durant la partie en cours
   let ghostSampleTimer = 0;
+  let trailTimer = 0;                 // minuteur d'émission de la traînée cosmétique
   let lastRunGhost = [];              // copie figée des échantillons de la dernière partie terminée
   let activeGhost = null;             // { uid, name, mode, hard, samples } — adversaire fantôme choisi
   let ghostActive = false;            // vrai si le fantôme choisi correspond au mode de la partie en cours
@@ -2377,6 +2440,22 @@
     player.vy += GRAVITY*dt;
     player.y += player.vy*dt;
     if(player.invul>0) player.invul -= dt;
+
+    // Traînée cosmétique : petites particules émises derrière le joueur
+    if(wallet.trail && wallet.trail !== 'none'){
+      trailTimer -= dt;
+      if(trailTimer <= 0){
+        trailTimer = 0.035;
+        const tdef = TRAILS.find(t=>t.id===wallet.trail);
+        if(tdef){
+          const col = tdef.color==='rainbow' ? `hsl(${Math.floor(Math.random()*360)},85%,65%)` : tdef.color;
+          particles.push({
+            kind:'trail', x: player.x + (Math.random()*8-4), y: player.y + (Math.random()*8-4),
+            vx:(Math.random()*20-10), vy:20+Math.random()*20, life:0.4, color: col
+          });
+        }
+      }
+    }
 
     const heavyMult = activeMalus && activeMalus.type==='lourd' ? (wallet.hardMode ? 0.5 : 0.62) : 1;
     const jumpBoost = 1 + wallet.jump*0.16;
