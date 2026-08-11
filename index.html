@@ -238,6 +238,17 @@
   .account-line{color:var(--menthe);font-size:12.5px;margin-bottom:6px;}
   .account-line a{color:var(--brume);text-decoration:underline;cursor:pointer;}
 
+  .setting-row{display:flex;gap:8px;margin-bottom:6px;}
+  .setting-opt{
+    flex:1;background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:14px;padding:12px 10px;
+    text-align:left;cursor:pointer;
+  }
+  .setting-opt.active{border-color:var(--menthe);background:rgba(78,205,196,0.12);}
+  .setting-opt-title{font-weight:700;font-size:13.5px;margin-bottom:2px;}
+  .setting-opt-desc{font-size:11px;color:var(--brume);line-height:1.3;}
+
   #malus-banner{
     position:absolute;top:56px;left:50%;transform:translateX(-50%);
     background:rgba(239,71,105,0.92);
@@ -307,9 +318,11 @@
     <div class="streak-line" id="start-streak">🔥 0 jour de suite</div>
     <div class="account-line hidden" id="start-account"></div>
     <button class="big-btn" id="btn-play">Jouer</button>
-    <button class="ghost-btn" id="btn-shop-start">🏪 Boutique &amp; Défis</button>
-    <button class="ghost-btn" id="btn-lb-start">🏆 Classement</button>
-    <button class="ghost-btn hidden" id="btn-account-start">👤 Se connecter / Créer un compte</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <button class="ghost-btn" id="btn-shop-start">🏪 Boutique &amp; Défis</button>
+      <button class="ghost-btn" id="btn-lb-start">🏆 Classement</button>
+      <button class="ghost-btn" id="btn-settings-open">⚙️ Paramètres</button>
+    </div>
   </div>
 
   <!-- Ecran game over -->
@@ -354,6 +367,31 @@
     <div class="auth-error" id="auth-error"></div>
     <button class="big-btn" id="btn-auth-submit">Créer mon compte</button>
     <button class="ghost-btn" id="btn-auth-close">Annuler</button>
+  </div>
+
+  <!-- Ecran paramètres -->
+  <div class="overlay hidden" id="screen-settings">
+    <div id="shop-panel">
+      <h2>⚙️ Paramètres</h2>
+
+      <h3>Déplacement</h3>
+      <div class="setting-row">
+        <div class="setting-opt active" id="opt-buttons">
+          <div class="setting-opt-title">🕹️ Boutons</div>
+          <div class="setting-opt-desc">Deux boutons tactiles à l'écran</div>
+        </div>
+        <div class="setting-opt" id="opt-drag">
+          <div class="setting-opt-title">👆 Glisser le doigt</div>
+          <div class="setting-opt-desc">Le personnage suit ton doigt sur l'écran</div>
+        </div>
+      </div>
+
+      <h3>Compte</h3>
+      <div class="account-line hidden" id="settings-account"></div>
+      <button class="ghost-btn" id="btn-account-settings" style="width:100%;">👤 Se connecter / Créer un compte</button>
+
+      <button class="ghost-btn" id="btn-settings-close" style="width:100%;margin-top:14px;">Fermer</button>
+    </div>
   </div>
 
   <!-- Ecran pause -->
@@ -462,14 +500,22 @@
     { id:'menthe',  name:'Menthe',        color:'#4ecdc4', cost:60 },
     { id:'or',      name:'Doré',          color:'#ffd166', cost:100 },
     { id:'nuit',    name:'Nuit étoilée',  color:'#8d8fc7', cost:140 },
+    { id:'glace',   name:'Glace',         color:'#7ee8fa', cost:120 },
+    { id:'lave',    name:'Lave',          color:'#ff5a4e', cost:160 },
+    { id:'foret',   name:'Forêt',         color:'#5fd88f', cost:120 },
+    { id:'rose',    name:'Rose bonbon',   color:'#ff8fd6', cost:120 },
+    { id:'ombre',   name:'Ombre',         color:'#3a3960', cost:200 },
   ];
 
   // ---------- Améliorations ----------
   const UPGRADES = {
-    jump:   { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9 },
-    magnet: { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1 },
-    shield: { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:2, baseCost:50, costMult:1.8 },
-    life:   { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:2, baseCost:90, costMult:2.0 },
+    jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9 },
+    magnet:  { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1 },
+    shield:  { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:3, baseCost:50, costMult:1.8 },
+    life:    { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:3, baseCost:90, costMult:2.0 },
+    reduction:{ name:"Résistance aux malus", desc:"Réduit la durée des malus subis (lourd, glace, inversé).", icon:"⛑️", color:"#5ac8f2", max:3, baseCost:55, costMult:1.7 },
+    luck:    { name:"Porte-bonheur",    desc:"Augmente les chances de trouver des coffres et des diamants.", icon:"🍀", color:"#7ee87e", max:3, baseCost:60, costMult:1.7 },
+    comboSaver:{ name:"Combo protégé",  desc:"Un malus réduit ton combo de moitié au lieu de le remettre à zéro.", icon:"🔗", color:"#ff9166", max:1, baseCost:130, costMult:1 },
   };
 
   // ---------- Défis quotidiens ----------
@@ -480,6 +526,9 @@
     { type:'runs',         make:()=>rnd(2,4),    label:g=>`Termine ${g} parties`, reward:g=>12*g },
     { type:'diamonds',     make:()=>rnd(2,5),    label:g=>`Ramasse ${g} diamants`, reward:g=>10*g },
     { type:'chests',       make:()=>rnd(1,3),    label:g=>`Ouvre ${g} coffres mystère`, reward:g=>16*g },
+    { type:'altitude_hard',make:()=>rnd(500,850),label:g=>`Défi difficile : atteins ${g} m en une partie`, reward:g=>Math.max(60,Math.round(g*0.45)) },
+    { type:'combo_max',    make:()=>3,           label:g=>`Défi difficile : atteins le combo maximum x4`, reward:g=>70 },
+    { type:'clean_run',    make:()=>rnd(180,300),label:g=>`Défi difficile : atteins ${g} m sans toucher aucun malus`, reward:g=>Math.round(g*0.5) },
   ];
   function rnd(a,b){ return Math.floor(a+Math.random()*(b-a+1)); }
   function todayStr(){
@@ -505,7 +554,9 @@
   // ---------- Sauvegarde locale ----------
   let wallet = {
     coins:0, best:0, jump:0, magnet:0, shield:0, life:0,
+    reduction:0, luck:0, comboSaver:0,
     skin:'default', unlockedSkins:['default'],
+    settings:{ controlMode:'buttons' },
     daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null }
   };
 
@@ -517,10 +568,15 @@
         Object.assign(wallet, parsed);
         if(!wallet.unlockedSkins) wallet.unlockedSkins = ['default'];
         if(!wallet.daily) wallet.daily = { date:null, challenges:[], streak:0, lastPlayedDate:null };
+        if(!wallet.settings) wallet.settings = { controlMode:'buttons' };
+        if(wallet.reduction==null) wallet.reduction = 0;
+        if(wallet.luck==null) wallet.luck = 0;
+        if(wallet.comboSaver==null) wallet.comboSaver = 0;
       }
     }catch(e){ /* rien à charger */ }
     refreshDaily();
     refreshHud();
+    setControlMode(wallet.settings.controlMode || 'buttons');
   }
   function saveWallet(){
     try{ localStorage.setItem('ascension_save', JSON.stringify(wallet)); }
@@ -579,28 +635,41 @@
 
   function updateAccountUI(){
     const startEl = document.getElementById('start-account');
-    const startBtn = document.getElementById('btn-account-start');
+    const settingsEl = document.getElementById('settings-account');
+    const settingsBtn = document.getElementById('btn-account-settings');
     const overEl = document.getElementById('over-account');
     const saveBtn = document.getElementById('btn-save-score');
     if(!fbReady){
-      startEl.classList.add('hidden'); startBtn.classList.add('hidden'); overEl.classList.add('hidden');
+      startEl.classList.add('hidden');
+      settingsEl.classList.add('hidden');
+      settingsBtn.textContent = '👤 Classement pas encore configuré';
+      settingsBtn.disabled = true;
+      overEl.classList.remove('hidden');
+      overEl.textContent = 'Classement pas encore activé sur ce jeu';
+      saveBtn.textContent = 'Classement non configuré';
+      saveBtn.disabled = true;
       return;
     }
-    startBtn.classList.remove('hidden');
+    settingsBtn.disabled = false;
     if(currentUser){
       const pseudo = currentUser.displayName || 'Joueur';
       startEl.textContent = `Connecté : ${pseudo}`;
       startEl.classList.remove('hidden');
-      startBtn.textContent = '🚪 Déconnexion';
+      settingsEl.textContent = `Connecté : ${pseudo}`;
+      settingsEl.classList.remove('hidden');
+      settingsBtn.textContent = '🚪 Déconnexion';
       overEl.textContent = `Le score sera enregistré sous : ${pseudo}`;
       overEl.classList.remove('hidden');
       saveBtn.textContent = 'Enregistrer mon score';
+      saveBtn.disabled = false;
     } else {
       startEl.classList.add('hidden');
-      startBtn.textContent = '👤 Se connecter / Créer un compte';
+      settingsEl.classList.add('hidden');
+      settingsBtn.textContent = '👤 Se connecter / Créer un compte';
       overEl.textContent = 'Connecte-toi pour apparaître au classement';
       overEl.classList.remove('hidden');
       saveBtn.textContent = 'Se connecter pour enregistrer';
+      saveBtn.disabled = false;
     }
   }
 
@@ -780,7 +849,7 @@
   }
 
   // ---------- Navigation d'écrans ----------
-  const screens = ['start','over','pause','shop','leaderboard','auth'];
+  const screens = ['start','over','pause','shop','leaderboard','auth','settings'];
   function showScreen(name){
     screens.forEach(s=>{
       document.getElementById('screen-'+s).classList.toggle('hidden', s!==name);
@@ -812,6 +881,7 @@
   document.getElementById('btn-lb-close').onclick = ()=>{ showScreen(lbReturnTo); };
 
   function doSaveScore(){
+    if(!fbReady) return;
     const btn = document.getElementById('btn-save-score');
     btn.disabled = true; btn.textContent = 'Envoi…';
     submitScore(document.getElementById('over-alt').textContent).then(ok=>{
@@ -820,7 +890,10 @@
     });
   }
   document.getElementById('btn-save-score').onclick = ()=>{
-    if(!fbReady) return;
+    if(!fbReady){
+      showToast('🚧 Le classement n\'est pas encore configuré (Firebase)');
+      return;
+    }
     if(!currentUser){
       authReturnTo = 'over';
       authAutoSubmit = true;
@@ -829,6 +902,20 @@
     }
     doSaveScore();
   };
+
+  // ---------- Ecran paramètres ----------
+  document.getElementById('btn-settings-open').onclick = ()=>{ updateAccountUI(); showScreen('settings'); };
+  document.getElementById('btn-settings-close').onclick = ()=>{ showScreen('start'); };
+
+  function setControlMode(mode){
+    wallet.settings.controlMode = mode;
+    saveWallet();
+    document.getElementById('opt-buttons').classList.toggle('active', mode==='buttons');
+    document.getElementById('opt-drag').classList.toggle('active', mode==='drag');
+    document.getElementById('controls').classList.toggle('hidden', mode==='drag');
+  }
+  document.getElementById('opt-buttons').onclick = ()=> setControlMode('buttons');
+  document.getElementById('opt-drag').onclick = ()=> setControlMode('drag');
 
   // ---------- Ecran compte ----------
   let authMode = 'signup';
@@ -851,9 +938,10 @@
   }
   document.getElementById('tab-signup').onclick = ()=> setAuthTab('signup');
   document.getElementById('tab-login').onclick = ()=> setAuthTab('login');
-  document.getElementById('btn-account-start').onclick = ()=>{
+  document.getElementById('btn-account-settings').onclick = ()=>{
+    if(!fbReady) return;
     if(currentUser){ fbAuth.signOut(); return; }
-    authReturnTo = 'start'; authAutoSubmit = false;
+    authReturnTo = 'settings'; authAutoSubmit = false;
     openAuthScreen('signup');
   };
   document.getElementById('btn-auth-close').onclick = ()=>{ authAutoSubmit = false; showScreen(authReturnTo); };
@@ -922,6 +1010,33 @@
   bindHold('btn-left','left');
   bindHold('btn-right','right');
 
+  // Contrôle "glisser le doigt" : le personnage suit la position du doigt/souris sur le canevas
+  let dragActive = false, dragX = W/2;
+  function dragPosFromEvent(ev){
+    const rect = canvas.getBoundingClientRect();
+    const point = ev.touches && ev.touches.length ? ev.touches[0] : ev;
+    dragX = point.clientX - rect.left;
+  }
+  canvas.addEventListener('touchstart', ev=>{
+    if(wallet.settings.controlMode !== 'drag') return;
+    dragActive = true; dragPosFromEvent(ev); ensureAudio();
+  }, {passive:true});
+  canvas.addEventListener('touchmove', ev=>{
+    if(wallet.settings.controlMode !== 'drag') return;
+    dragPosFromEvent(ev);
+  }, {passive:true});
+  canvas.addEventListener('touchend', ()=>{ dragActive = false; }, {passive:true});
+  canvas.addEventListener('touchcancel', ()=>{ dragActive = false; }, {passive:true});
+  canvas.addEventListener('mousedown', ev=>{
+    if(wallet.settings.controlMode !== 'drag') return;
+    dragActive = true; dragPosFromEvent(ev); ensureAudio();
+  });
+  window.addEventListener('mousemove', ev=>{
+    if(wallet.settings.controlMode !== 'drag' || !dragActive) return;
+    dragPosFromEvent(ev);
+  });
+  window.addEventListener('mouseup', ()=>{ dragActive = false; });
+
   // ---------- Constantes de jeu ----------
   const GRAVITY = 1600;
   const MOVE_ACCEL = 2600;
@@ -945,6 +1060,7 @@
   let runStartY = 0;
   let combo = 0, comboMax = 0, diamondsThisRun = 0, chestsThisRun = 0;
   let recordCelebrated = false;
+  let noMalusThisRun = true;
   let shakeTime = 0, shakeMag = 0;
 
   function resetRun(){
@@ -955,6 +1071,7 @@
     lifeLeft = wallet.life;
     combo = 0; comboMax = 0; diamondsThisRun = 0; chestsThisRun = 0;
     recordCelebrated = false;
+    noMalusThisRun = true;
     shakeTime = 0; shakeMag = 0;
 
     platforms.push({ x: W/2 - PLAT_W/2, y: H - 80, w:PLAT_W, type:'normal', dir:1, broken:false });
@@ -992,8 +1109,9 @@
       if(Math.random() < 0.5){
         coins.push({ x: x + PLAT_W/2 + rand(-10,10), y: y - rand(24,40), r:9, taken:false });
       }
-      // diamants : plus fréquents près des plateformes à risque
-      const diamondChance = type==='malus' ? 0.4 : 0.035;
+      // diamants : plus fréquents près des plateformes à risque, boostés par le porte-bonheur
+      const luckBoost = wallet.luck||0;
+      const diamondChance = (type==='malus' ? 0.4 : 0.035) + luckBoost*0.012;
       if(Math.random() < diamondChance){
         diamonds.push({ x: x + PLAT_W/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
       }
@@ -1003,8 +1121,8 @@
         const mt = ks[Math.floor(Math.random()*ks.length)];
         malusOrbs.push({ x: rand(24,W-24), y: y - rand(50,90), r:13, type:mt, taken:false });
       }
-      // coffre mystère, rare (un peu plus généreux en altitude pour compenser la difficulté)
-      if(Math.random() < 0.03 + t*0.015){
+      // coffre mystère, rare (un peu plus généreux en altitude, et avec le porte-bonheur)
+      if(Math.random() < 0.03 + t*0.015 + luckBoost*0.01){
         chests.push({ x: rand(30,W-30), y: y - rand(40,70), r:14, taken:false });
       }
     }
@@ -1061,6 +1179,7 @@
       comboMax = Math.max(comboMax, combo);
       const tier = Math.floor(combo/3); // niveau de multiplicateur atteint
       updateChallenge('combo', tier+1, 'max');
+      updateChallenge('combo_max', tier, 'max'); // objectif = tier 3 (combo x4)
     }
   }
 
@@ -1069,18 +1188,20 @@
   }
 
   function applyMalus(type){
-    combo = 0;
     if(shieldLeft > 0){
       shieldLeft -= 1;
       flashBanner('🛡️ Bouclier absorbé !', 'rgba(141,143,199,0.92)');
       return;
     }
+    noMalusThisRun = false;
+    combo = wallet.comboSaver ? Math.floor(combo/2) : 0;
     if(type === 'vol'){
       const lost = Math.min(runCoins, 5 + Math.floor(runCoins*0.2));
       runCoins -= lost;
       refreshHud();
     } else {
-      activeMalus = { type, timeLeft: MALUS_TYPES[type].dur };
+      const reduceFactor = 1 - Math.min(0.6, wallet.reduction*0.18);
+      activeMalus = { type, timeLeft: MALUS_TYPES[type].dur * reduceFactor };
     }
     const m = MALUS_TYPES[type];
     flashBanner(`${m.icon} ${m.label}`, m.color+'ee');
@@ -1094,6 +1215,7 @@
     wallet.coins += runCoins;
     const alt = Math.floor(score/10);
     updateChallenge('altitude_run', alt, 'max');
+    updateChallenge('altitude_hard', alt, 'max');
     updateChallenge('coins_run', runCoins, 'max');
     const isNewRecord = alt > wallet.best;
     wallet.best = Math.max(wallet.best, alt);
@@ -1158,20 +1280,37 @@
       if(activeMalus.timeLeft <= 0) activeMalus = null;
     }
 
-    let dir = (keys.right?1:0) - (keys.left?1:0);
-    if(activeMalus && activeMalus.type==='inverse') dir = -dir;
-
     const isIce = activeMalus && activeMalus.type==='glace';
-    const accel = isIce ? MOVE_ACCEL*0.35 : MOVE_ACCEL;
-    const fric = isIce ? FRICTION*0.15 : FRICTION;
+    const isInverse = activeMalus && activeMalus.type==='inverse';
 
-    if(dir !== 0){
-      player.vx += dir*accel*dt;
-      player.vx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, player.vx));
+    if(wallet.settings.controlMode === 'drag'){
+      if(dragActive){
+        let targetX = dragX;
+        if(isInverse) targetX = W - dragX; // inversé : le doigt fait bouger dans l'autre sens
+        const pull = isIce ? 4 : 11;
+        const targetVx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, (targetX - player.x) * pull));
+        player.vx += (targetVx - player.vx) * Math.min(1, dt*9);
+      } else {
+        const fric = isIce ? FRICTION*0.15 : FRICTION;
+        const s = Math.sign(player.vx);
+        player.vx -= s*fric*dt;
+        if(Math.sign(player.vx) !== s) player.vx = 0;
+      }
     } else {
-      const s = Math.sign(player.vx);
-      player.vx -= s*fric*dt;
-      if(Math.sign(player.vx) !== s) player.vx = 0;
+      let dir = (keys.right?1:0) - (keys.left?1:0);
+      if(isInverse) dir = -dir;
+
+      const accel = isIce ? MOVE_ACCEL*0.35 : MOVE_ACCEL;
+      const fric = isIce ? FRICTION*0.15 : FRICTION;
+
+      if(dir !== 0){
+        player.vx += dir*accel*dt;
+        player.vx = Math.max(-MOVE_MAX, Math.min(MOVE_MAX, player.vx));
+      } else {
+        const s = Math.sign(player.vx);
+        player.vx -= s*fric*dt;
+        if(Math.sign(player.vx) !== s) player.vx = 0;
+      }
     }
     player.x += player.vx*dt;
     if(player.x < -player.r) player.x = W+player.r;
@@ -1241,6 +1380,8 @@
       score += delta;
       const alt = Math.floor(score/10);
       updateChallenge('altitude_run', alt, 'max');
+      updateChallenge('altitude_hard', alt, 'max');
+      if(noMalusThisRun) updateChallenge('clean_run', alt, 'max');
       if(!recordCelebrated && wallet.best>0 && alt > wallet.best){
         recordCelebrated = true;
         flashBanner('🏆 NOUVEAU RECORD !', 'rgba(255,209,102,0.95)');
