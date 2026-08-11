@@ -601,6 +601,12 @@
         <div id="skin-items"></div>
         <h3 style="margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;">Traînées</h3>
         <div id="trail-items"></div>
+        <h3 style="margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;">🧢 Chapeaux</h3>
+        <div id="acc-hat-items"></div>
+        <h3 style="margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;">🕶️ Lunettes</h3>
+        <div id="acc-glasses-items"></div>
+        <h3 style="margin:18px 0 8px;font-size:14px;color:var(--brume);text-transform:uppercase;letter-spacing:1px;">✨ Autres</h3>
+        <div id="acc-other-items"></div>
       </div>
 
       <div class="shop-tab-content hidden" data-tab-content="progression">
@@ -759,6 +765,12 @@
     { id:'citrouille', name:'Citrouille', color:'#ff8c00', cost:150, seasonal:{months:[10]}, seasonLabel:'Disponible en octobre' },
     { id:'noel',    name:'Esprit de Noël', color:'#e63946', cost:150, seasonal:{months:[12]}, seasonLabel:'Disponible en décembre' },
     { id:'kamikaze', name:'Kamikaze',     color:'#ff1744', cost:0, unlockAch:'hard_300', unlockLabel:"Succès « Casse-cou confirmé » (300 m en mode difficile)" },
+    { id:'corail',  name:'Corail',        color:'#ff7f6b', cost:110 },
+    { id:'lagon',   name:'Lagon',         color:'#26c6da', cost:110 },
+    { id:'violette', name:'Violette',     color:'#b388ff', cost:130 },
+    { id:'citron',  name:'Citron vert',   color:'#c6ff00', cost:110 },
+    { id:'cuivre',  name:'Cuivre',        color:'#c77b3f', cost:150 },
+    { id:'galaxie', name:'Galaxie',       color:'#5c4dff', cost:0, unlockAch:'chests_50', unlockLabel:"Succès « Chasseur de trésors » (50 coffres)" },
   ];
 
   const TRAILS = [
@@ -769,6 +781,31 @@
     { id:'glace',   name:'Cristaux de glace', color:'#7ee8fa', cost:140, style:'spark' },
     { id:'arcenciel', name:'Arc-en-ciel',    color:'rainbow', cost:0, unlockAch:'prestige_1', unlockLabel:"Succès « Renaissance » (1er prestige)" },
     { id:'ombre',   name:'Sillage d\'ombre', color:'#8d8fc7', cost:0, unlockAch:'alt_5000', unlockLabel:"Succès « Astronaute » (5000 m)" },
+    { id:'rose',    name:'Pétales roses',    color:'#ff8fd6', cost:100, style:'spark' },
+    { id:'or',      name:'Poudre d\'or',     color:'#ffb703', cost:160, style:'spark' },
+    { id:'violette', name:'Brume violette',  color:'#b388ff', cost:120, style:'spark' },
+    { id:'toxique', name:'Traînée toxique',  color:'#c6ff00', cost:0, unlockAch:'runs_100', unlockLabel:"Succès « Habitué » (100 parties)" },
+  ];
+
+  // ---------- Accessoires cosmétiques (chapeaux, lunettes, autres) ----------
+  const ACCESSORIES = [
+    { id:'hat-none',      slot:'hat',      name:'Aucun',            icon:'',   cost:0 },
+    { id:'hat-casquette', slot:'hat',      name:'Casquette',        icon:'🧢', cost:70 },
+    { id:'hat-chapeau',   slot:'hat',      name:'Chapeau de sorcier', icon:'🎩', cost:120 },
+    { id:'hat-couronne',  slot:'hat',      name:'Couronne',         icon:'👑', cost:0, unlockAch:'all_worlds', unlockLabel:"Succès « Explorateur » (tous les mondes)" },
+    { id:'hat-pere-noel', slot:'hat',      name:'Bonnet de Noël',   icon:'🎅', cost:150, seasonal:{months:[12]}, seasonLabel:'Disponible en décembre' },
+    { id:'hat-fete',      slot:'hat',      name:'Chapeau de fête',  icon:'🥳', cost:80 },
+
+    { id:'glasses-none',   slot:'glasses', name:'Aucune',           icon:'',   cost:0 },
+    { id:'glasses-soleil', slot:'glasses', name:'Lunettes de soleil', icon:'🕶️', cost:70 },
+    { id:'glasses-vue',    slot:'glasses', name:'Lunettes rondes',  icon:'👓', cost:70 },
+    { id:'glasses-fete',   slot:'glasses', name:'Lunettes de fête', icon:'🥽', cost:100 },
+
+    { id:'other-none',    slot:'other',    name:'Aucun',            icon:'',   cost:0 },
+    { id:'other-echarpe', slot:'other',    name:'Écharpe',          icon:'🧣', cost:70 },
+    { id:'other-ailes',   slot:'other',    name:'Ailes de papillon', icon:'🦋', cost:150, unlockAch:'alt_2000', unlockLabel:"Succès « Alpiniste » (2000 m)" },
+    { id:'other-masque',  slot:'other',    name:'Masque',           icon:'🎭', cost:100 },
+    { id:'other-fleur',   slot:'other',    name:'Fleur',            icon:'🌸', cost:60 },
   ];
 
   // ---------- Améliorations ----------
@@ -879,6 +916,9 @@
         TRAILS.forEach(t=>{
           if(t.unlockAch===a.id && !wallet.unlockedTrails.includes(t.id)) wallet.unlockedTrails.push(t.id);
         });
+        ACCESSORIES.forEach(ac=>{
+          if(ac.unlockAch===a.id && !wallet.unlockedAccessories.includes(ac.id)) wallet.unlockedAccessories.push(ac.id);
+        });
       }
     });
     if(unlocked.length){
@@ -928,6 +968,8 @@
     wallet.skin = 'default';
     wallet.unlockedTrails = ['none'];
     wallet.trail = 'none';
+    wallet.unlockedAccessories = ['hat-none','glasses-none','other-none'];
+    wallet.accessories = { hat:'hat-none', glasses:'glasses-none', other:'other-none' };
     saveWallet();
     refreshHud();
     showToast(`✨ Prestige ${wallet.prestige} ! Gains permanents ×${prestigeMultiplier().toFixed(2)}`);
@@ -941,6 +983,8 @@
     reduction:0, luck:0, comboSaver:0,
     skin:'default', unlockedSkins:['default'],
     trail:'none', unlockedTrails:['none'],
+    accessories:{ hat:'hat-none', glasses:'glasses-none', other:'other-none' },
+    unlockedAccessories:['hat-none','glasses-none','other-none'],
     selectedWorld:'collines', unlockedWorlds:['collines'],
     settings:{ controlMode:'buttons' },
     daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null },
@@ -962,6 +1006,8 @@
         if(!wallet.unlockedSkins) wallet.unlockedSkins = ['default'];
         if(!wallet.unlockedTrails) wallet.unlockedTrails = ['none'];
         if(wallet.trail==null) wallet.trail = 'none';
+        if(!wallet.accessories) wallet.accessories = { hat:'hat-none', glasses:'glasses-none', other:'other-none' };
+        if(!wallet.unlockedAccessories) wallet.unlockedAccessories = ['hat-none','glasses-none','other-none'];
         if(!wallet.daily) wallet.daily = { date:null, challenges:[], streak:0, lastPlayedDate:null };
         if(!wallet.settings) wallet.settings = { controlMode:'buttons' };
         if(!wallet.unlockedWorlds) wallet.unlockedWorlds = ['collines'];
@@ -1588,6 +1634,55 @@
         twrap.appendChild(div);
       });
     }
+
+    // Accessoires (chapeaux, lunettes, autres) — rendu générique par emplacement
+    function renderAccessorySlot(slot, containerId){
+      const wrap = document.getElementById(containerId);
+      if(!wrap) return;
+      wrap.innerHTML = '';
+      const curMonth2 = new Date().getMonth()+1;
+      ACCESSORIES.filter(ac=>ac.slot===slot).forEach(ac=>{
+        const owned = wallet.unlockedAccessories.includes(ac.id);
+        const equipped = wallet.accessories[slot] === ac.id;
+        const achLocked = ac.unlockAch && !owned;
+        const outOfSeason = ac.seasonal && !owned && !ac.seasonal.months.includes(curMonth2);
+        const locked = achLocked || outOfSeason;
+        let sub;
+        if(owned) sub = equipped ? 'Équipé' : 'Débloqué';
+        else if(achLocked) sub = `🔒 ${ac.unlockLabel}`;
+        else if(outOfSeason) sub = `🔒 ${ac.seasonLabel}`;
+        else sub = 'Accessoire cosmétique';
+        const div = document.createElement('div');
+        div.className='item';
+        div.innerHTML = `
+          <div class="ic" style="background:rgba(255,255,255,0.06);font-size:17px;">${ac.icon || '∅'}</div>
+          <div class="txt">
+            <b>${ac.name}</b>
+            <small>${sub}</small>
+          </div>
+          <button class="buy-btn ${equipped?'equipped':''} ${locked?'maxed':''}" ${equipped||locked?'disabled':''}>
+            ${equipped ? 'Équipé' : (owned ? 'Équiper' : (locked ? 'Verrouillé' : (ac.cost>0 ? '🪙 '+ac.cost : 'Équiper')))}
+          </button>
+        `;
+        const btn = div.querySelector('button');
+        if(!equipped && !locked){
+          btn.addEventListener('click', ()=>{
+            if(owned){
+              wallet.accessories[slot] = ac.id;
+            } else if(wallet.coins >= ac.cost){
+              wallet.coins -= ac.cost;
+              wallet.unlockedAccessories.push(ac.id);
+              wallet.accessories[slot] = ac.id;
+            } else return;
+            saveWallet(); refreshHud(); renderShop();
+          });
+        }
+        wrap.appendChild(div);
+      });
+    }
+    renderAccessorySlot('hat', 'acc-hat-items');
+    renderAccessorySlot('glasses', 'acc-glasses-items');
+    renderAccessorySlot('other', 'acc-other-items');
 
     // Progression : paliers d'altitude + prestige
     const pwrap = document.getElementById('progression-items');
@@ -2871,6 +2966,17 @@
     const eyeOff = player.vx>4?2:(player.vx<-4?-2:0);
     ctx.beginPath(); ctx.arc(player.x-5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.arc(player.x+5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+
+    // Accessoires cosmétiques (lunettes, autre, puis chapeau par-dessus)
+    ctx.font = `${Math.round(player.r*1.1)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const accGlasses = ACCESSORIES.find(a=>a.id===wallet.accessories.glasses);
+    if(accGlasses && accGlasses.icon) ctx.fillText(accGlasses.icon, player.x+eyeOff, py-2);
+    const accOther = ACCESSORIES.find(a=>a.id===wallet.accessories.other);
+    if(accOther && accOther.icon) ctx.fillText(accOther.icon, player.x+player.r*0.9, py+player.r*0.5);
+    const accHat = ACCESSORIES.find(a=>a.id===wallet.accessories.hat);
+    if(accHat && accHat.icon) ctx.fillText(accHat.icon, player.x, py-player.r*1.15);
+
     if(shieldLeft>0){
       ctx.strokeStyle = 'rgba(141,143,199,0.8)'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(player.x, py, player.r+6, 0, 7); ctx.stroke();
