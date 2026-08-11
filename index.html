@@ -1062,16 +1062,24 @@
   }
 
   function submitScore(altitude){
-    if(!fbReady || !currentUser) return Promise.resolve(false);
-    return fbDb.collection('scores').add({
-      uid: currentUser.uid,
-      name: (currentUser.displayName||'Joueur').slice(0,16),
-      altitude: Math.max(0, Math.floor(altitude)),
-      code: (wallet.friendCode||'').toUpperCase().slice(0,8),
-      mode: lastRunMode,
-      hard: lastRunHard,
-      ts: Date.now()
-    }).then(()=>true).catch(err=>{ console.warn('Envoi du score impossible', err); return false; });
+    if(!fbReady || !currentUser) return Promise.resolve('error');
+    const alt = Math.max(0, Math.floor(altitude));
+    const docId = `${currentUser.uid}_${lastRunMode}_${lastRunHard?1:0}`;
+    const ref = fbDb.collection('scores').doc(docId);
+    return ref.get().then(snap=>{
+      if(snap.exists && snap.data().altitude >= alt){
+        return 'not_better';
+      }
+      return ref.set({
+        uid: currentUser.uid,
+        name: (currentUser.displayName||'Joueur').slice(0,16),
+        altitude: alt,
+        code: (wallet.friendCode||'').toUpperCase().slice(0,8),
+        mode: lastRunMode,
+        hard: lastRunHard,
+        ts: Date.now()
+      }).then(()=>'saved');
+    }).catch(err=>{ console.warn('Envoi du score impossible', err); return 'error'; });
   }
 
   let lbMode = 'global';
@@ -1576,11 +1584,17 @@
     if(!fbReady || scoreSavedThisRun) return;
     const btn = document.getElementById('btn-save-score');
     btn.disabled = true; btn.textContent = 'Envoi…';
-    submitScore(document.getElementById('over-alt').textContent).then(ok=>{
-      if(ok){
+    submitScore(document.getElementById('over-alt').textContent).then(result=>{
+      if(result==='saved'){
         scoreSavedThisRun = true;
         btn.disabled = true;
-        btn.textContent = '✅ Score enregistré';
+        btn.textContent = '✅ Nouveau record enregistré';
+        showToast('🏆 Nouveau meilleur score dans ce classement !');
+      } else if(result==='not_better'){
+        scoreSavedThisRun = true;
+        btn.disabled = true;
+        btn.textContent = '☑️ Tu as déjà mieux dans ce mode';
+        showToast('Ton meilleur score dans ce mode est déjà supérieur');
       } else {
         btn.disabled = false;
         btn.textContent = '❌ Échec, réessaie';
