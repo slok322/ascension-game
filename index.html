@@ -41,6 +41,14 @@
     display:none;
   }
   #app.hard-active #hard-badge{display:block;}
+  #ghost-delta{
+    position:absolute;top:96px;left:50%;transform:translateX(-50%);
+    background:rgba(21,18,51,0.8);border:1px solid rgba(255,255,255,0.2);
+    color:#f2f0ff;font-weight:800;font-size:13px;
+    padding:5px 14px;border-radius:999px;z-index:6;
+  }
+  #ghost-delta.ahead{color:#4ecdc4;border-color:rgba(78,205,196,0.5);}
+  #ghost-delta.behind{color:#ef476f;border-color:rgba(239,71,105,0.5);}
   #app{
     position:relative;
     width:100%;
@@ -271,6 +279,13 @@
   .lb-name{flex:1;font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lb-alt{color:var(--menthe);font-weight:800;font-size:13px;white-space:nowrap;}
   .lb-mode{font-size:12px;white-space:nowrap;flex-shrink:0;}
+  .lb-ghost-btn{
+    font-size:15px;flex-shrink:0;cursor:pointer;
+    width:26px;height:26px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,0.06);
+  }
+  .lb-ghost-btn:active{background:rgba(255,255,255,0.18);}
   .lb-empty{color:var(--brume);font-size:13px;padding:12px 0;}
 
   .auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;margin-bottom:16px;width:100%;max-width:280px;}
@@ -369,6 +384,7 @@
 <div id="app">
   <canvas id="game"></canvas>
   <div id="hard-badge">🔥 MODE DIFFICILE — aucun rattrapage</div>
+  <div id="ghost-delta" class="hidden"></div>
 
   <div id="hud">
     <div class="pill coins">🪙 <span id="hud-coins">0</span></div>
@@ -400,6 +416,7 @@
     <div class="streak-line" id="start-streak">🔥 0 jour de suite</div>
     <div class="streak-line" id="start-world" style="color:var(--menthe);border-color:rgba(78,205,196,0.3);background:rgba(78,205,196,0.1);">🌍 Collines verdoyantes</div>
     <div class="streak-line" id="start-hardmode" style="color:var(--malus);border-color:rgba(239,71,105,0.3);background:rgba(239,71,105,0.1);cursor:pointer;">🔥 Mode difficile : verrouillé</div>
+    <div class="streak-line hidden" id="start-ghost" style="color:#f2f0ff;border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);cursor:pointer;" title="Cliquer pour retirer ce fantôme">👻 Fantôme : —</div>
     <div class="account-line hidden" id="start-account"></div>
     <div class="mode-row">
       <div class="mode-chip active" data-mode="normal">🎮 Normal</div>
@@ -907,7 +924,8 @@
     lastBonusDate:null,
     achievements:[], worldQuestsDone:[], tutorialSeen:false, friendCode:'',
     stats:{ runs:0, totalCoins:0, totalDistance:0, totalChests:0, totalDiamonds:0, bestCombo:0, playTimeSec:0 },
-    a11y:{ vibration:true, bigButtons:false, colorblind:false }
+    a11y:{ vibration:true, bigButtons:false, colorblind:false },
+    ghostRef:null
   };
 
   function loadWallet(){
@@ -937,12 +955,27 @@
         if(!wallet.stats) wallet.stats = { runs:0, totalCoins:0, totalDistance:0, totalChests:0, totalDiamonds:0, bestCombo:0, playTimeSec:0 };
         if(!wallet.a11y) wallet.a11y = { vibration:true, bigButtons:false, colorblind:false };
         if(wallet.airDash==null) wallet.airDash = 0;
+        if(wallet.ghostRef===undefined) wallet.ghostRef = null;
       }
     }catch(e){ /* rien à charger */ }
     refreshDaily();
     refreshHud();
     setControlMode(wallet.settings.controlMode || 'buttons');
     applyA11y();
+    if(wallet.ghostRef) reloadGhostRef();
+  }
+  // Recharge les échantillons du fantôme choisi (seule la référence légère est sauvegardée en local)
+  function reloadGhostRef(){
+    if(!fbReady || !wallet.ghostRef) return;
+    const g = wallet.ghostRef;
+    const docId = `${g.uid}_${g.mode}_${g.hard?1:0}`;
+    fbDb.collection('ghosts').doc(docId).get().then(snap=>{
+      if(snap.exists && snap.data().samples && snap.data().samples.length){
+        const d = snap.data();
+        activeGhost = { uid: d.uid, name: d.name, mode: d.mode||'normal', hard: !!d.hard, samples: d.samples };
+        refreshHud();
+      }
+    }).catch(()=>{});
   }
   function applyA11y(){
     const app = document.getElementById('app');
@@ -1078,8 +1111,23 @@
         mode: lastRunMode,
         hard: lastRunHard,
         ts: Date.now()
-      }).then(()=>'saved');
+      }).then(()=> uploadGhost(docId, alt)).then(()=>'saved');
     }).catch(err=>{ console.warn('Envoi du score impossible', err); return 'error'; });
+  }
+
+  // Sauvegarde le tracé du meilleur run pour que d'autres joueurs puissent l'affronter en mode fantôme
+  function uploadGhost(docId, alt){
+    if(!lastRunGhost.length) return Promise.resolve();
+    return fbDb.collection('ghosts').doc(docId).set({
+      uid: currentUser.uid,
+      name: (currentUser.displayName||'Joueur').slice(0,16),
+      altitude: alt,
+      code: (wallet.friendCode||'').toUpperCase().slice(0,8),
+      mode: lastRunMode,
+      hard: lastRunHard,
+      samples: lastRunGhost,
+      ts: Date.now()
+    }).catch(err=> console.warn('Envoi du fantôme impossible', err));
   }
 
   let lbMode = 'global';
@@ -1135,14 +1183,50 @@
       const row = document.createElement('div');
       row.className = 'lb-row' + (currentUser && d.uid===currentUser.uid ? ' me' : '');
       const modeTag = (modeIcons[d.mode]||'🎮') + (d.hard ? '🔥' : '');
+      const isMe = currentUser && d.uid===currentUser.uid;
       row.innerHTML = `
         <div class="lb-rank">${rank}</div>
         <div class="lb-name">${escapeHtml(d.name||'Joueur')}</div>
         <div class="lb-mode" title="${d.mode||'normal'}${d.hard?' · difficile':''}">${modeTag}</div>
         <div class="lb-alt">${d.altitude} m</div>
+        ${lbMode==='amis' && !isMe ? '<div class="lb-ghost-btn" title="Affronter ce fantôme">👻</div>' : ''}
       `;
+      if(lbMode==='amis' && !isMe){
+        row.querySelector('.lb-ghost-btn').addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          selectGhost(d);
+        });
+      }
       list.appendChild(row);
     });
+  }
+
+  // ---------- Sélection du fantôme à affronter ----------
+  function selectGhost(d){
+    if(!fbReady) return;
+    const docId = `${d.uid}_${d.mode||'normal'}_${d.hard?1:0}`;
+    showToast('👻 Chargement du fantôme…');
+    fbDb.collection('ghosts').doc(docId).get().then(snap=>{
+      if(!snap.exists || !snap.data().samples || !snap.data().samples.length){
+        showToast('❌ Ce joueur n\'a pas de tracé enregistré pour ce mode');
+        return;
+      }
+      const g = snap.data();
+      activeGhost = { uid: g.uid, name: g.name, mode: g.mode||'normal', hard: !!g.hard, samples: g.samples };
+      wallet.ghostRef = { uid: g.uid, name: g.name, mode: g.mode||'normal', hard: !!g.hard };
+      saveWallet();
+      refreshHud();
+      showToast(`👻 Fantôme choisi : ${g.name} (${g.altitude} m)`);
+    }).catch(err=>{
+      console.warn('Chargement du fantôme impossible', err);
+      showToast('❌ Impossible de charger ce fantôme');
+    });
+  }
+  function clearGhost(){
+    activeGhost = null;
+    wallet.ghostRef = null;
+    saveWallet();
+    refreshHud();
   }
   const LB_TABS = ['global','amis','zen','chrono'];
   LB_TABS.forEach(tab=>{
@@ -1418,12 +1502,24 @@
         ? `🔥 Mode difficile : ACTIVÉ — aucun rattrapage, malus renforcés (×${HARD_MODE.coinMult.toFixed(2)} gains)`
         : `Mode difficile : désactivé (appuie pour activer — aucun rattrapage après une chute)`;
     }
+    const ghostEl = document.getElementById('start-ghost');
+    const modeLabels2 = { normal:'Normal', zen:'Zen', chrono:'Chrono' };
+    if(activeGhost){
+      ghostEl.classList.remove('hidden');
+      ghostEl.textContent = `👻 Fantôme : ${activeGhost.name} · ${modeLabels2[activeGhost.mode]||activeGhost.mode}${activeGhost.hard?' 🔥':''} (retirer)`;
+    } else {
+      ghostEl.classList.add('hidden');
+    }
   }
   document.getElementById('start-hardmode').addEventListener('click', ()=>{
     if(!wallet.hardUnlocked) return;
     wallet.hardMode = !wallet.hardMode;
     saveWallet();
     refreshHud();
+  });
+  document.getElementById('start-ghost').addEventListener('click', ()=>{
+    clearGhost();
+    showToast('👻 Fantôme retiré');
   });
 
   // ---------- Navigation d'écrans ----------
@@ -1778,6 +1874,15 @@
   let shakeTime = 0, shakeMag = 0;
   let dashLeft = 0;
   let timeLeft = 60;
+  // ---------- Mode fantôme ----------
+  let runElapsed = 0;                 // temps écoulé depuis le début de la partie en cours
+  let ghostSamples = [];              // échantillons {t, alt, x} enregistrés durant la partie en cours
+  let ghostSampleTimer = 0;
+  let lastRunGhost = [];              // copie figée des échantillons de la dernière partie terminée
+  let activeGhost = null;             // { uid, name, mode, hard, samples } — adversaire fantôme choisi
+  let ghostActive = false;            // vrai si le fantôme choisi correspond au mode de la partie en cours
+  const GHOST_SAMPLE_INTERVAL = 0.2;  // secondes entre deux échantillons
+  const GHOST_MAX_SAMPLES = 900;      // ~3 minutes d'enregistrement, largement suffisant
 
   const BOOST_TYPES = {
     double: { label:'Pièces x2 !', color:'#ffd166', icon:'💰', dur:7 },
@@ -1797,6 +1902,11 @@
     shakeTime = 0; shakeMag = 0;
     dashLeft = wallet.airDash ? 1 : 0;
     timeLeft = 60;
+    runElapsed = 0;
+    ghostSamples = [];
+    ghostSampleTimer = 0;
+    ghostActive = (activeGhost && activeGhost.mode===gameMode && !!activeGhost.hard===!!wallet.hardMode);
+    document.getElementById('ghost-delta').classList.add('hidden');
 
     const dashBtn = document.getElementById('btn-dash');
     dashBtn.classList.toggle('hidden', !wallet.airDash);
@@ -1978,6 +2088,7 @@
     const alt = Math.floor(score/10);
     const runMode = gameMode;
     const runHard = !!wallet.hardMode;
+    lastRunGhost = ghostSamples.slice();
     updateChallenge('altitude_run', alt, 'max');
     updateChallenge('altitude_hard', alt, 'max');
     updateChallenge('coins_run', runCoins, 'max');
@@ -2078,8 +2189,34 @@
     updateChallenge('chests', 1, 'add');
   }
 
+  // Interpole la position (altitude en m, x écran) du fantôme au temps t (secondes) à partir de ses échantillons enregistrés
+  function ghostPositionAt(t){
+    const s = activeGhost && activeGhost.samples;
+    if(!s || !s.length) return null;
+    if(t <= s[0].t) return { alt: s[0].alt, x: s[0].x };
+    const last = s[s.length-1];
+    if(t >= last.t) return null; // le fantôme a fini son tracé, il ne se rend pas plus loin
+    for(let i=0;i<s.length-1;i++){
+      const a = s[i], b = s[i+1];
+      if(t >= a.t && t <= b.t){
+        const span = (b.t - a.t) || 1;
+        const f = (t - a.t) / span;
+        return { alt: a.alt + (b.alt-a.alt)*f, x: a.x + (b.x-a.x)*f };
+      }
+    }
+    return null;
+  }
+
   function update(dt){
     wallet.stats.playTimeSec = (wallet.stats.playTimeSec||0) + dt;
+    runElapsed += dt;
+
+    // Enregistrement du tracé pour le mode fantôme (échantillonné pour rester léger)
+    ghostSampleTimer += dt;
+    if(ghostSampleTimer >= GHOST_SAMPLE_INTERVAL && ghostSamples.length < GHOST_MAX_SAMPLES){
+      ghostSampleTimer = 0;
+      ghostSamples.push({ t: Math.round(runElapsed*10)/10, alt: Math.floor(score/10), x: Math.round(player.x) });
+    }
 
     if(gameMode==='chrono'){
       timeLeft -= dt;
@@ -2231,6 +2368,22 @@
         sfxRecord();
       }
       document.getElementById('hud-alt-pill').classList.toggle('record', wallet.best>0 && alt>wallet.best);
+    }
+
+    // Mode fantôme : écart d'altitude à l'instant t face au meilleur run de l'adversaire choisi
+    if(ghostActive && activeGhost && activeGhost.samples && activeGhost.samples.length){
+      const gPos = ghostPositionAt(runElapsed);
+      const deltaEl = document.getElementById('ghost-delta');
+      if(gPos){
+        const myAlt = Math.floor(score/10);
+        const diff = myAlt - gPos.alt;
+        deltaEl.classList.remove('hidden');
+        deltaEl.classList.toggle('ahead', diff>=0);
+        deltaEl.classList.toggle('behind', diff<0);
+        deltaEl.textContent = `👻 ${diff>=0?'+':''}${diff} m`;
+      } else {
+        deltaEl.classList.add('hidden'); // le fantôme est arrivé au bout de son tracé enregistré
+      }
     }
 
     // particules
@@ -2497,6 +2650,31 @@
       }
     }
     ctx.globalAlpha = 1;
+
+    // fantôme (mode course contre un ami)
+    if(ghostActive && activeGhost && activeGhost.samples && activeGhost.samples.length){
+      const gPos = ghostPositionAt(runElapsed);
+      if(gPos){
+        const gWorldY = runStartY - gPos.alt*10;
+        const gy = gWorldY - camY;
+        if(gy > -30 && gy < H+30){
+          ctx.save();
+          ctx.globalAlpha = 0.38;
+          ctx.fillStyle = '#f2f0ff';
+          ctx.beginPath(); ctx.arc(gPos.x, gy, 16, 0, 7); ctx.fill();
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = '#0b1026';
+          ctx.beginPath(); ctx.arc(gPos.x-5, gy-3, 2.2, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(gPos.x+5, gy-3, 2.2, 0, 7); ctx.fill();
+          ctx.globalAlpha = 0.7;
+          ctx.font = '700 10px Trebuchet MS, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#f2f0ff';
+          ctx.fillText(activeGhost.name||'Ami', gPos.x, gy-24);
+          ctx.restore();
+        }
+      }
+    }
 
     // joueur
     const py = player.y - camY;
