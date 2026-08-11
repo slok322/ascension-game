@@ -1342,7 +1342,7 @@
   const PLAT_W = 58, PLAT_H = 16;
 
   const MALUS_TYPES = {
-    lourd:   { label:"Lourd !",       color:"#ef476f", icon:"🪨", dur:4 },
+    lourd:   { label:"Lourd !",       color:"#ef476f", icon:"🪨", dur:3.2 },
     glace:   { label:"Glissant !",    color:"#5ac8f2", icon:"🧊", dur:4 },
     inverse: { label:"Inversé !",     color:"#c04ee0", icon:"🌀", dur:3.5 },
     vol:     { label:"Pièces volées !", color:"#ff9166", icon:"👻", dur:0 },
@@ -1393,6 +1393,7 @@
     const world = currentWorld();
     const diffMult = effectiveDiffMult();
     let y = spawnMaxY;
+    let lastPlatType = platforms.length ? platforms[platforms.length-1].type : 'normal';
     while(y > targetY){
       // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude, ajustée par le monde choisi
       const altHere = Math.max(0, (runStartY - y) / 10);
@@ -1405,7 +1406,7 @@
       const x = rand(20, W-20-plW);
       const roll = Math.random();
       let type = 'normal';
-      const malusChance = 0.12 * diffMult + t*0.12;
+      const malusChance = Math.min(0.32, 0.12 * diffMult + t*0.12); // plafonné pour éviter les enchaînements bloquants
       const crumbleChance = malusChance + 0.11 + t*0.05;
       const movingChance = crumbleChance + 0.11 + t*0.08;
       const shrinkChance = movingChance + 0.09 + t*0.08;               // plateformes qui rétrécissent au contact
@@ -1413,6 +1414,9 @@
       else if(roll < crumbleChance) type='crumble';
       else if(roll < movingChance) type='moving';
       else if(roll < shrinkChance) type='shrink';
+      // jamais deux plateformes à pics d'affilée : la suivante est garantie sûre pour laisser une échappatoire
+      if(type==='malus' && lastPlatType==='malus') type='normal';
+      lastPlatType = type;
 
       const platSpeed = (rand(45,95) + t*70) * (0.85 + diffMult*0.15); // plateformes mobiles plus rapides
       platforms.push({ x, y, w:plW, baseW:plW, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed, age:0, touched:false });
@@ -1663,7 +1667,7 @@
     player.y += player.vy*dt;
     if(player.invul>0) player.invul -= dt;
 
-    const heavyMult = activeMalus && activeMalus.type==='lourd' ? 0.62 : 1;
+    const heavyMult = activeMalus && activeMalus.type==='lourd' ? 0.75 : 1;
     const jumpBoost = 1 + wallet.jump*0.16;
     const JUMP_FORCE = -760*jumpBoost*heavyMult;
 
