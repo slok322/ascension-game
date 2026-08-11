@@ -195,6 +195,11 @@
   .buy-btn:disabled{background:#3a3960;color:#8d8fc7;cursor:default;}
   .buy-btn.maxed{background:#3a3960;color:var(--brume);}
   .buy-btn.equipped{background:var(--or);color:#3a2600;}
+  .cat-title{
+    font-size:11.5px;font-weight:800;color:var(--brume);
+    text-transform:uppercase;letter-spacing:0.5px;
+    margin:10px 0 6px;
+  }
 
   .name-input{
     width:100%;max-width:260px;
@@ -316,6 +321,7 @@
     <h1>ASCENSION</h1>
     <div class="sub">Grimpe le plus haut possible, ramasse des pièces,<br>enchaîne les combos, évite les malus.</div>
     <div class="streak-line" id="start-streak">🔥 0 jour de suite</div>
+    <div class="streak-line" id="start-world" style="color:var(--menthe);border-color:rgba(78,205,196,0.3);background:rgba(78,205,196,0.1);">🌍 Collines verdoyantes</div>
     <div class="account-line hidden" id="start-account"></div>
     <button class="big-btn" id="btn-play">Jouer</button>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
@@ -411,6 +417,9 @@
       <h3>Défis du jour</h3>
       <div id="challenge-items"></div>
 
+      <h3>🌍 Mondes</h3>
+      <div id="world-items"></div>
+
       <h3>Améliorations</h3>
       <div id="shop-items"></div>
 
@@ -494,6 +503,18 @@
   }
 
   // ---------- Peaux ----------
+  // ---------- Mondes ----------
+  const WORLDS = [
+    { id:'collines', name:'Collines verdoyantes', desc:'Le monde de base, équilibré.', icon:'🌳', color:'#5fd88f', cost:0, diffMult:1.0, coinMult:1.0 },
+    { id:'canyon',   name:'Canyon aride',         desc:'Plateformes plus espacées, plus de malus.', icon:'🏜️', color:'#e0a458', cost:150, diffMult:1.25, coinMult:1.3 },
+    { id:'volcan',   name:'Volcan brûlant',       desc:'Rythme soutenu, peu de répit.', icon:'🌋', color:'#ff5a4e', cost:400, diffMult:1.5, coinMult:1.6 },
+    { id:'glacier',  name:'Glacier extrême',      desc:'Très exigeant, réservé aux experts.', icon:'🧊', color:'#7ee8fa', cost:800, diffMult:1.75, coinMult:2.0 },
+    { id:'abysse',   name:'Abysse céleste',       desc:'Le défi ultime. Peu survivent longtemps.', icon:'🌌', color:'#8d8fc7', cost:1600, diffMult:2.0, coinMult:2.5 },
+  ];
+  function currentWorld(){
+    return WORLDS.find(w=>w.id===wallet.selectedWorld) || WORLDS[0];
+  }
+
   const SKINS = [
     { id:'default', name:'Classique',     color:'#ffefe0', cost:0 },
     { id:'aube',    name:'Aube',          color:'#ff9166', cost:60 },
@@ -509,14 +530,19 @@
 
   // ---------- Améliorations ----------
   const UPGRADES = {
-    jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9 },
-    magnet:  { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1 },
-    shield:  { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:3, baseCost:50, costMult:1.8 },
-    life:    { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:3, baseCost:90, costMult:2.0 },
-    reduction:{ name:"Résistance aux malus", desc:"Réduit la durée des malus subis (lourd, glace, inversé).", icon:"⛑️", color:"#5ac8f2", max:3, baseCost:55, costMult:1.7 },
-    luck:    { name:"Porte-bonheur",    desc:"Augmente les chances de trouver des coffres et des diamants.", icon:"🍀", color:"#7ee87e", max:3, baseCost:60, costMult:1.7 },
-    comboSaver:{ name:"Combo protégé",  desc:"Un malus réduit ton combo de moitié au lieu de le remettre à zéro.", icon:"🔗", color:"#ff9166", max:1, baseCost:130, costMult:1 },
+    jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9, category:'progression' },
+    magnet:  { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1, category:'progression' },
+    shield:  { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:3, baseCost:50, costMult:1.8, category:'protection' },
+    life:    { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:3, baseCost:90, costMult:2.0, category:'protection' },
+    reduction:{ name:"Résistance aux malus", desc:"Réduit la durée des malus subis (lourd, glace, inversé).", icon:"⛑️", color:"#5ac8f2", max:3, baseCost:55, costMult:1.7, category:'protection' },
+    luck:    { name:"Porte-bonheur",    desc:"Augmente les chances de trouver des coffres et des diamants.", icon:"🍀", color:"#7ee87e", max:3, baseCost:60, costMult:1.7, category:'chance' },
+    comboSaver:{ name:"Combo protégé",  desc:"Un malus réduit ton combo de moitié au lieu de le remettre à zéro.", icon:"🔗", color:"#ff9166", max:1, baseCost:130, costMult:1, category:'chance' },
   };
+  const UPGRADE_CATEGORIES = [
+    { id:'progression', label:'🚀 Progression' },
+    { id:'protection',  label:'🛡️ Protection' },
+    { id:'chance',       label:'🍀 Chance' },
+  ];
 
   // ---------- Défis quotidiens ----------
   const CHALLENGE_POOL = [
@@ -556,6 +582,7 @@
     coins:0, best:0, jump:0, magnet:0, shield:0, life:0,
     reduction:0, luck:0, comboSaver:0,
     skin:'default', unlockedSkins:['default'],
+    selectedWorld:'collines', unlockedWorlds:['collines'],
     settings:{ controlMode:'buttons' },
     daily:{ date:null, challenges:[], streak:0, lastPlayedDate:null }
   };
@@ -569,6 +596,8 @@
         if(!wallet.unlockedSkins) wallet.unlockedSkins = ['default'];
         if(!wallet.daily) wallet.daily = { date:null, challenges:[], streak:0, lastPlayedDate:null };
         if(!wallet.settings) wallet.settings = { controlMode:'buttons' };
+        if(!wallet.unlockedWorlds) wallet.unlockedWorlds = ['collines'];
+        if(!wallet.selectedWorld) wallet.selectedWorld = 'collines';
         if(wallet.reduction==null) wallet.reduction = 0;
         if(wallet.luck==null) wallet.luck = 0;
         if(wallet.comboSaver==null) wallet.comboSaver = 0;
@@ -774,39 +803,81 @@
       cwrap.appendChild(div);
     });
 
-    // Améliorations
-    const wrap = document.getElementById('shop-items');
-    wrap.innerHTML = '';
-    Object.keys(UPGRADES).forEach(key=>{
-      const u = UPGRADES[key];
-      const lvl = wallet[key];
-      const maxed = lvl >= u.max;
-      const cost = maxed ? 0 : costFor(key);
+    // Mondes
+    const mwrap = document.getElementById('world-items');
+    mwrap.innerHTML = '';
+    WORLDS.forEach(w=>{
+      const owned = wallet.unlockedWorlds.includes(w.id);
+      const selected = wallet.selectedWorld === w.id;
       const div = document.createElement('div');
       div.className='item';
       div.innerHTML = `
-        <div class="ic" style="background:${u.color}22;color:${u.color};border-color:${u.color}55;">${u.icon}</div>
+        <div class="ic" style="background:${w.color}22;color:${w.color};border-color:${w.color}55;">${w.icon}</div>
         <div class="txt">
-          <b>${u.name} ${u.max>1 ? `(Niv. ${lvl}/${u.max})`:''}</b>
-          <small>${u.desc}</small>
+          <b>${w.name} ${selected?'· ✅ Actif':''}</b>
+          <small>${w.desc} — Difficulté ×${w.diffMult.toFixed(2)}, gains ×${w.coinMult.toFixed(1)}</small>
         </div>
-        <button class="buy-btn ${maxed?'maxed':''}" ${maxed || wallet.coins<cost ? 'disabled':''}>
-          ${maxed ? 'Max' : '🪙 '+cost}
+        <button class="buy-btn ${selected?'equipped':''}" ${selected?'disabled':''}>
+          ${selected ? 'Actif' : (owned ? 'Choisir' : '🪙 '+w.cost)}
         </button>
       `;
       const btn = div.querySelector('button');
-      if(!maxed){
+      if(!selected){
         btn.addEventListener('click', ()=>{
-          if(wallet.coins >= cost){
-            wallet.coins -= cost;
-            wallet[key] += 1;
-            saveWallet();
-            refreshHud();
-            renderShop();
-          }
+          if(owned){
+            wallet.selectedWorld = w.id;
+          } else if(wallet.coins >= w.cost){
+            wallet.coins -= w.cost;
+            wallet.unlockedWorlds.push(w.id);
+            wallet.selectedWorld = w.id;
+          } else return;
+          saveWallet(); refreshHud(); renderShop();
         });
       }
-      wrap.appendChild(div);
+      mwrap.appendChild(div);
+    });
+
+    // Améliorations, groupées par catégorie
+    const wrap = document.getElementById('shop-items');
+    wrap.innerHTML = '';
+    UPGRADE_CATEGORIES.forEach(cat=>{
+      const keysInCat = Object.keys(UPGRADES).filter(k=>UPGRADES[k].category===cat.id);
+      if(!keysInCat.length) return;
+      const catTitle = document.createElement('div');
+      catTitle.className = 'cat-title';
+      catTitle.textContent = cat.label;
+      wrap.appendChild(catTitle);
+      keysInCat.forEach(key=>{
+        const u = UPGRADES[key];
+        const lvl = wallet[key];
+        const maxed = lvl >= u.max;
+        const cost = maxed ? 0 : costFor(key);
+        const div = document.createElement('div');
+        div.className='item';
+        div.innerHTML = `
+          <div class="ic" style="background:${u.color}22;color:${u.color};border-color:${u.color}55;">${u.icon}</div>
+          <div class="txt">
+            <b>${u.name} ${u.max>1 ? `(Niv. ${lvl}/${u.max})`:''}</b>
+            <small>${u.desc}</small>
+          </div>
+          <button class="buy-btn ${maxed?'maxed':''}" ${maxed || wallet.coins<cost ? 'disabled':''}>
+            ${maxed ? 'Max' : '🪙 '+cost}
+          </button>
+        `;
+        const btn = div.querySelector('button');
+        if(!maxed){
+          btn.addEventListener('click', ()=>{
+            if(wallet.coins >= cost){
+              wallet.coins -= cost;
+              wallet[key] += 1;
+              saveWallet();
+              refreshHud();
+              renderShop();
+            }
+          });
+        }
+        wrap.appendChild(div);
+      });
     });
 
     // Apparence
@@ -846,6 +917,8 @@
 
   function refreshHud(){
     document.getElementById('hud-coins').textContent = wallet.coins;
+    const w = currentWorld();
+    document.getElementById('start-world').textContent = `${w.icon} ${w.name}`;
   }
 
   // ---------- Navigation d'écrans ----------
@@ -880,16 +953,24 @@
   document.getElementById('btn-lb-over').onclick  = ()=>{ renderLeaderboard(); showScreen('leaderboard'); lbReturnTo='over'; };
   document.getElementById('btn-lb-close').onclick = ()=>{ showScreen(lbReturnTo); };
 
+  let scoreSavedThisRun = false;
   function doSaveScore(){
-    if(!fbReady) return;
+    if(!fbReady || scoreSavedThisRun) return;
     const btn = document.getElementById('btn-save-score');
     btn.disabled = true; btn.textContent = 'Envoi…';
     submitScore(document.getElementById('over-alt').textContent).then(ok=>{
-      btn.disabled = false;
-      btn.textContent = ok ? '✅ Score enregistré' : '❌ Échec, réessaie';
+      if(ok){
+        scoreSavedThisRun = true;
+        btn.disabled = true;
+        btn.textContent = '✅ Score enregistré';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '❌ Échec, réessaie';
+      }
     });
   }
   document.getElementById('btn-save-score').onclick = ()=>{
+    if(scoreSavedThisRun) return;
     if(!fbReady){
       showToast('🚧 Le classement n\'est pas encore configuré (Firebase)');
       return;
@@ -1085,25 +1166,26 @@
   function rand(a,b){ return a + Math.random()*(b-a); }
 
   function generateUpTo(targetY){
+    const world = currentWorld();
     let y = spawnMaxY;
     while(y > targetY){
-      // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude
+      // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude, ajustée par le monde choisi
       const altHere = Math.max(0, (runStartY - y) / 10);
-      const t = Math.min(1, altHere / 450);
+      const t = Math.min(1, altHere / 450) * world.diffMult;
 
       const gap = rand(52, 88) + t*46;              // écarts plus grands en montant
       y -= gap;
       const x = rand(20, W-20-PLAT_W);
       const roll = Math.random();
       let type = 'normal';
-      const malusChance = 0.13 + t*0.14;             // jusqu'à 27% de plateformes à pics
+      const malusChance = 0.13 * world.diffMult + t*0.14;             // jusqu'à 27%+ de plateformes à pics
       const crumbleChance = malusChance + 0.12 + t*0.06;
       const movingChance = crumbleChance + 0.12 + t*0.10;
       if(roll < malusChance) type='malus';
       else if(roll < crumbleChance) type='crumble';
       else if(roll < movingChance) type='moving';
 
-      const platSpeed = rand(45,95) + t*70;          // plateformes mobiles plus rapides
+      const platSpeed = (rand(45,95) + t*70) * (0.85 + world.diffMult*0.15); // plateformes mobiles plus rapides
       platforms.push({ x, y, w:PLAT_W, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed });
 
       if(Math.random() < 0.5){
@@ -1115,7 +1197,7 @@
       if(Math.random() < diamondChance){
         diamonds.push({ x: x + PLAT_W/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
       }
-      const orbChance = 0.08 + t*0.09;               // plus d'orbes malus en altitude
+      const orbChance = 0.08 * world.diffMult + t*0.09;               // plus d'orbes malus en altitude
       if(type!=='malus' && Math.random() < orbChance){
         const ks = Object.keys(MALUS_TYPES);
         const mt = ks[Math.floor(Math.random()*ks.length)];
@@ -1227,6 +1309,7 @@
     document.getElementById('over-coins').textContent = runCoins;
     document.getElementById('over-combo').textContent = 'x'+Math.min(4,1+Math.floor(comboMax/3));
     document.getElementById('over-best').textContent = wallet.best;
+    scoreSavedThisRun = false;
     const saveBtn = document.getElementById('btn-save-score');
     saveBtn.disabled = false;
     updateAccountUI();
@@ -1236,7 +1319,7 @@
   function collectCoin(c){
     c.taken = true;
     const mult = comboMultiplier();
-    const val = mult;
+    const val = Math.round(mult * currentWorld().coinMult);
     runCoins += val;
     addFloatText(c.x, c.y - camY, '+'+val, '#ffd166');
     addBurst(c.x, c.y - camY, '#ffd166', 5);
@@ -1246,7 +1329,7 @@
   function collectDiamond(d){
     d.taken = true;
     const mult = comboMultiplier();
-    const val = 5*mult;
+    const val = Math.round(5*mult * currentWorld().coinMult);
     runCoins += val;
     diamondsThisRun += 1;
     addFloatText(d.x, d.y - camY, '+'+val+' 💎', '#7ee8fa');
@@ -1263,6 +1346,7 @@
     if(roll < 0.70) val = rnd(3,8);
     else if(roll < 0.95) val = rnd(10,20);
     else val = rnd(30,60);
+    val = Math.round(val * currentWorld().coinMult);
     runCoins += val;
     addFloatText(ch.x, ch.y - camY, '🎁 +'+val, '#ffd166');
     addBurst(ch.x, ch.y - camY, '#ffd166', 14);
