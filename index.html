@@ -230,6 +230,11 @@
   .auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;margin-bottom:16px;width:100%;max-width:280px;}
   .auth-tab{flex:1;text-align:center;padding:8px;border-radius:9px;font-size:13px;font-weight:700;color:var(--brume);cursor:pointer;}
   .auth-tab.active{background:var(--menthe);color:#062824;}
+
+  .shop-tabs{display:flex;gap:5px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;margin-bottom:16px;overflow-x:auto;}
+  .shop-tab{flex:1;text-align:center;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700;color:var(--brume);cursor:pointer;white-space:nowrap;}
+  .shop-tab.active{background:var(--menthe);color:#062824;}
+  .shop-tab-content.hidden{display:none;}
   .auth-field{
     width:100%;max-width:280px;
     background:rgba(255,255,255,0.06);
@@ -347,6 +352,7 @@
       <button class="ghost-btn" id="btn-lb-over">🏆 Classement</button>
     </div>
     <button class="ghost-btn" id="btn-shop-over">🏪 Boutique &amp; Défis</button>
+    <button class="ghost-btn" id="btn-menu-over">📋 Menu</button>
   </div>
 
   <!-- Ecran classement -->
@@ -414,17 +420,28 @@
       <div class="wallet-line">🪙 <span id="shop-wallet">0</span> pièces</div>
       <div class="streak-mini" id="shop-streak">🔥 0 jour de suite</div>
 
-      <h3>Défis du jour</h3>
-      <div id="challenge-items"></div>
+      <div class="shop-tabs">
+        <div class="shop-tab active" data-tab="defis">🎯 Défis</div>
+        <div class="shop-tab" data-tab="mondes">🌍 Monde</div>
+        <div class="shop-tab" data-tab="ameliorations">⬆️ Améliorations</div>
+        <div class="shop-tab" data-tab="apparence">🎨 Apparence</div>
+      </div>
 
-      <h3>🌍 Mondes</h3>
-      <div id="world-items"></div>
+      <div class="shop-tab-content" data-tab-content="defis">
+        <div id="challenge-items"></div>
+      </div>
 
-      <h3>Améliorations</h3>
-      <div id="shop-items"></div>
+      <div class="shop-tab-content hidden" data-tab-content="mondes">
+        <div id="world-items"></div>
+      </div>
 
-      <h3>Apparence</h3>
-      <div id="skin-items"></div>
+      <div class="shop-tab-content hidden" data-tab-content="ameliorations">
+        <div id="shop-items"></div>
+      </div>
+
+      <div class="shop-tab-content hidden" data-tab-content="apparence">
+        <div id="skin-items"></div>
+      </div>
 
       <button class="ghost-btn" id="btn-shop-close" style="width:100%;margin-top:6px;">Fermer</button>
     </div>
@@ -530,13 +547,13 @@
 
   // ---------- Améliorations ----------
   const UPGRADES = {
-    jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:40, costMult:1.9, category:'progression' },
-    magnet:  { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:70, costMult:1, category:'progression' },
-    shield:  { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:3, baseCost:50, costMult:1.8, category:'protection' },
-    life:    { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:3, baseCost:90, costMult:2.0, category:'protection' },
-    reduction:{ name:"Résistance aux malus", desc:"Réduit la durée des malus subis (lourd, glace, inversé).", icon:"⛑️", color:"#5ac8f2", max:3, baseCost:55, costMult:1.7, category:'protection' },
-    luck:    { name:"Porte-bonheur",    desc:"Augmente les chances de trouver des coffres et des diamants.", icon:"🍀", color:"#7ee87e", max:3, baseCost:60, costMult:1.7, category:'chance' },
-    comboSaver:{ name:"Combo protégé",  desc:"Un malus réduit ton combo de moitié au lieu de le remettre à zéro.", icon:"🔗", color:"#ff9166", max:1, baseCost:130, costMult:1, category:'chance' },
+    jump:    { name:"Ressort renforcé", desc:"Saute plus haut à chaque rebond.", icon:"🚀", color:"#ffd166", max:3, baseCost:110, costMult:2.3, category:'progression' },
+    magnet:  { name:"Aimant à pièces",  desc:"Attire les pièces et diamants proches.", icon:"🧲", color:"#4ecdc4", max:1, baseCost:220, costMult:1, category:'progression' },
+    shield:  { name:"Bouclier",         desc:"Annule le prochain malus touché (se recharge chaque partie).", icon:"🛡️", color:"#8d8fc7", max:3, baseCost:140, costMult:2.1, category:'protection' },
+    life:    { name:"Vie supplémentaire", desc:"Te rattrape une fois après une chute.", icon:"❤️", color:"#ef476f", max:3, baseCost:260, costMult:2.4, category:'protection' },
+    reduction:{ name:"Résistance aux malus", desc:"Réduit la durée des malus subis (lourd, glace, inversé).", icon:"⛑️", color:"#5ac8f2", max:3, baseCost:150, costMult:2.0, category:'protection' },
+    luck:    { name:"Porte-bonheur",    desc:"Augmente les chances de trouver des coffres et des diamants.", icon:"🍀", color:"#7ee87e", max:3, baseCost:160, costMult:2.0, category:'chance' },
+    comboSaver:{ name:"Combo protégé",  desc:"Un malus réduit ton combo de moitié au lieu de le remettre à zéro.", icon:"🔗", color:"#ff9166", max:1, baseCost:300, costMult:1, category:'chance' },
   };
   const UPGRADE_CATEGORIES = [
     { id:'progression', label:'🚀 Progression' },
@@ -947,6 +964,14 @@
   document.getElementById('btn-resume').onclick = ()=>{ hideAllScreens(); resumeGame(); };
   document.getElementById('btn-play').onclick = ()=>{ ensureAudio(); hideAllScreens(); startGame(); };
   document.getElementById('btn-retry').onclick = ()=>{ ensureAudio(); hideAllScreens(); startGame(); };
+  document.getElementById('btn-menu-over').onclick = ()=>{ showScreen('start'); };
+
+  document.querySelectorAll('.shop-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.shop-tab').forEach(t=>t.classList.toggle('active', t===tab));
+      document.querySelectorAll('.shop-tab-content').forEach(c=>c.classList.toggle('hidden', c.dataset.tabContent!==tab.dataset.tab));
+    });
+  });
 
   let lbReturnTo = 'start';
   document.getElementById('btn-lb-start').onclick = ()=>{ renderLeaderboard(); showScreen('leaderboard'); lbReturnTo='start'; };
