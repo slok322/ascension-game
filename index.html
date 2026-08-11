@@ -29,6 +29,18 @@
     color:#f2f0ff;
     user-select:none;
   }
+  #app.hard-active{ animation: hard-pulse 1.6s ease-in-out infinite; }
+  @keyframes hard-pulse{
+    0%,100%{ box-shadow: inset 0 0 0px rgba(239,71,105,0), 0 0 60px rgba(0,0,0,0.6); }
+    50%{ box-shadow: inset 0 0 34px rgba(239,71,105,0.55), 0 0 60px rgba(0,0,0,0.6); }
+  }
+  #hard-badge{
+    position:absolute;top:56px;left:50%;transform:translateX(-50%);
+    background:rgba(239,71,105,0.85);color:#fff;font-weight:800;font-size:11.5px;
+    padding:4px 12px;border-radius:999px;z-index:6;letter-spacing:0.5px;
+    display:none;
+  }
+  #app.hard-active #hard-badge{display:block;}
   #app{
     position:relative;
     width:100%;
@@ -258,6 +270,7 @@
   .lb-row:nth-child(3) .lb-rank{color:#e0a458;}
   .lb-name{flex:1;font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lb-alt{color:var(--menthe);font-weight:800;font-size:13px;white-space:nowrap;}
+  .lb-mode{font-size:12px;white-space:nowrap;flex-shrink:0;}
   .lb-empty{color:var(--brume);font-size:13px;padding:12px 0;}
 
   .auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;margin-bottom:16px;width:100%;max-width:280px;}
@@ -355,6 +368,7 @@
 <body>
 <div id="app">
   <canvas id="game"></canvas>
+  <div id="hard-badge">🔥 MODE DIFFICILE — aucun rattrapage</div>
 
   <div id="hud">
     <div class="pill coins">🪙 <span id="hud-coins">0</span></div>
@@ -416,6 +430,7 @@
   <!-- Ecran game over -->
   <div class="overlay hidden" id="screen-over">
     <h1 style="font-size:28px;">Chute !</h1>
+    <div class="streak-line" id="over-mode" style="color:var(--menthe);border-color:rgba(78,205,196,0.3);background:rgba(78,205,196,0.1);">🎮 Normal</div>
     <div class="stat-row">
       <div class="stat"><b id="over-alt">0</b><span>Altitude (m)</span></div>
       <div class="stat"><b id="over-coins">0</b><span>Pièces</span></div>
@@ -437,9 +452,13 @@
   <div class="overlay hidden" id="screen-leaderboard">
     <div id="shop-panel">
       <h2>🏆 Classement</h2>
-      <div class="shop-tabs" style="max-width:280px;margin:0 auto 12px;">
+      <div class="shop-tabs" style="max-width:280px;margin:0 auto 4px;flex-wrap:wrap;">
         <div class="shop-tab active" id="lb-tab-global">🌍 Global</div>
         <div class="shop-tab" id="lb-tab-amis">🤝 Amis</div>
+      </div>
+      <div class="shop-tabs" style="max-width:280px;margin:0 auto 12px;">
+        <div class="shop-tab" id="lb-tab-zen">🧘 Zen</div>
+        <div class="shop-tab" id="lb-tab-chrono">⏱️ Chrono</div>
       </div>
       <div class="wallet-line" style="color:var(--menthe);">Meilleures altitudes</div>
       <div id="lb-list"><div class="lb-empty">Chargement…</div></div>
@@ -713,6 +732,7 @@
     { id:'braise',  name:'Braise éternelle', color:'#ff3d00', cost:0, unlockAch:'alt_5000', unlockLabel:"Succès « Astronaute » (5000 m)" },
     { id:'citrouille', name:'Citrouille', color:'#ff8c00', cost:150, seasonal:{months:[10]}, seasonLabel:'Disponible en octobre' },
     { id:'noel',    name:'Esprit de Noël', color:'#e63946', cost:150, seasonal:{months:[12]}, seasonLabel:'Disponible en décembre' },
+    { id:'kamikaze', name:'Kamikaze',     color:'#ff1744', cost:0, unlockAch:'hard_300', unlockLabel:"Succès « Casse-cou confirmé » (300 m en mode difficile)" },
   ];
 
   // ---------- Améliorations ----------
@@ -804,6 +824,7 @@
     { id:'all_upgrades',icon:'⭐', name:'Maximaliste',         desc:'Maxe toutes les améliorations.',             reward:250, cond:(w,c)=> Object.keys(UPGRADES).every(k=>w[k]>=UPGRADES[k].max) },
     { id:'prestige_1',  icon:'✨', name:'Renaissance',         desc:'Effectue ton premier prestige.',             reward:100, cond:(w,c)=> (w.prestige||0)>=1 },
     { id:'hardmode',    icon:'😈', name:'Casse-cou',           desc:'Débloque le mode difficile.',                reward:80,  cond:(w,c)=> w.hardUnlocked },
+    { id:'hard_300',    icon:'💀', name:'Casse-cou confirmé',  desc:'Atteins 300 m en mode difficile (sans rattrapage).', reward:150, cond:(w,c)=> c && c.hard && c.alt>=300 },
     { id:'clean_1000',  icon:'🕊️', name:'Vol immaculé',        desc:"Atteins 1000 m sans toucher un malus, en une partie.", reward:150, cond:(w,c)=> c && c.noMalus && c.alt>=1000 },
     { id:'chests_50',   icon:'🎁', name:'Chasseur de trésors', desc:'Ouvre 50 coffres au total.',                 reward:100, cond:(w,c)=> w.stats.totalChests>=50 },
     { id:'runs_100',    icon:'🏃', name:'Habitué',             desc:'Termine 100 parties.',                       reward:120, cond:(w,c)=> w.stats.runs>=100 },
@@ -1047,6 +1068,8 @@
       name: (currentUser.displayName||'Joueur').slice(0,16),
       altitude: Math.max(0, Math.floor(altitude)),
       code: (wallet.friendCode||'').toUpperCase().slice(0,8),
+      mode: lastRunMode,
+      hard: lastRunHard,
       ts: Date.now()
     }).then(()=>true).catch(err=>{ console.warn('Envoi du score impossible', err); return false; });
   }
@@ -1077,39 +1100,49 @@
     if(lbMode==='amis'){
       const myCode = (wallet.friendCode||'').toUpperCase();
       rows = myCode ? lbCache.filter(d=> (d.code||'').toUpperCase()===myCode) : [];
+    } else if(lbMode==='zen'){
+      rows = lbCache.filter(d=> d.mode==='zen');
+    } else if(lbMode==='chrono'){
+      rows = lbCache.filter(d=> d.mode==='chrono');
+    } else {
+      // Global : parties en mode normal (zen/chrono ont leur propre onglet)
+      rows = lbCache.filter(d=> !d.mode || d.mode==='normal');
     }
     rows = rows.slice(0,20);
     if(!rows.length){
-      list.innerHTML = lbMode==='amis'
-        ? '<div class="lb-empty">Aucun score avec ce code d\'amis (renseigne-le dans les Paramètres).</div>'
-        : '<div class="lb-empty">Aucun score pour le moment. Sois le premier !</div>';
+      const emptyMsg = {
+        amis: 'Aucun score avec ce code d\'amis (renseigne-le dans les Paramètres).',
+        zen: 'Aucun score en mode Zen pour le moment. Sois le premier !',
+        chrono: 'Aucun score en mode Chrono pour le moment. Sois le premier !',
+        global: 'Aucun score pour le moment. Sois le premier !',
+      };
+      list.innerHTML = `<div class="lb-empty">${emptyMsg[lbMode]}</div>`;
       return;
     }
     list.innerHTML = '';
     let rank = 0;
+    const modeIcons = { normal:'🎮', zen:'🧘', chrono:'⏱️' };
     rows.forEach(d=>{
       rank += 1;
       const row = document.createElement('div');
       row.className = 'lb-row' + (currentUser && d.uid===currentUser.uid ? ' me' : '');
+      const modeTag = (modeIcons[d.mode]||'🎮') + (d.hard ? '🔥' : '');
       row.innerHTML = `
         <div class="lb-rank">${rank}</div>
         <div class="lb-name">${escapeHtml(d.name||'Joueur')}</div>
+        <div class="lb-mode" title="${d.mode||'normal'}${d.hard?' · difficile':''}">${modeTag}</div>
         <div class="lb-alt">${d.altitude} m</div>
       `;
       list.appendChild(row);
     });
   }
-  document.getElementById('lb-tab-global').addEventListener('click', ()=>{
-    lbMode = 'global';
-    document.getElementById('lb-tab-global').classList.add('active');
-    document.getElementById('lb-tab-amis').classList.remove('active');
-    renderLbList();
-  });
-  document.getElementById('lb-tab-amis').addEventListener('click', ()=>{
-    lbMode = 'amis';
-    document.getElementById('lb-tab-amis').classList.add('active');
-    document.getElementById('lb-tab-global').classList.remove('active');
-    renderLbList();
+  const LB_TABS = ['global','amis','zen','chrono'];
+  LB_TABS.forEach(tab=>{
+    document.getElementById('lb-tab-'+tab).addEventListener('click', ()=>{
+      lbMode = tab;
+      LB_TABS.forEach(t=> document.getElementById('lb-tab-'+t).classList.toggle('active', t===tab));
+      renderLbList();
+    });
   });
   document.getElementById('friend-code-input').addEventListener('input', (e)=>{
     wallet.friendCode = e.target.value.toUpperCase();
@@ -1374,8 +1407,8 @@
     } else {
       hardEl.style.opacity = 1;
       hardEl.textContent = wallet.hardMode
-        ? `🔥 Mode difficile : ACTIVÉ (×${HARD_MODE.diffMult.toFixed(1)} risque, ×${HARD_MODE.coinMult.toFixed(2)} gains)`
-        : `Mode difficile : désactivé (appuie pour activer)`;
+        ? `🔥 Mode difficile : ACTIVÉ — aucun rattrapage, malus renforcés (×${HARD_MODE.coinMult.toFixed(2)} gains)`
+        : `Mode difficile : désactivé (appuie pour activer — aucun rattrapage après une chute)`;
     }
   }
   document.getElementById('start-hardmode').addEventListener('click', ()=>{
@@ -1466,6 +1499,8 @@
 
   // ---------- Sélecteur de mode de jeu ----------
   let gameMode = 'normal';
+  let lastRunMode = 'normal';
+  let lastRunHard = false;
   document.querySelectorAll('.mode-chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       gameMode = chip.dataset.mode;
@@ -1741,7 +1776,7 @@
     activeMalus = null;
     activeBoost = null;
     shieldLeft = wallet.shield;
-    lifeLeft = wallet.life;
+    lifeLeft = wallet.hardMode ? 0 : wallet.life;   // en mode difficile : aucun rattrapage après une chute
     combo = 0; comboMax = 0; diamondsThisRun = 0; chestsThisRun = 0;
     recordCelebrated = false;
     noMalusThisRun = true;
@@ -1837,6 +1872,7 @@
     lastTime = performance.now();
     updateChallenge('runs', 1, 'add');
     markPlayedToday();
+    app.classList.toggle('hard-active', !!wallet.hardMode);
     if(animId) cancelAnimationFrame(animId);
     loop(lastTime);
   }
@@ -1846,6 +1882,7 @@
     if(!gameStarted) return;
     running = true;
     lastTime = performance.now();
+    app.classList.toggle('hard-active', !!wallet.hardMode);
     startMusic();
     loop(lastTime);
   }
@@ -1909,7 +1946,8 @@
       refreshHud();
     } else {
       const reduceFactor = 1 - Math.min(0.6, wallet.reduction*0.18);
-      activeMalus = { type, timeLeft: MALUS_TYPES[type].dur * reduceFactor };
+      const hardPenalty = wallet.hardMode ? 1.3 : 1;   // en mode difficile, les malus durent plus longtemps
+      activeMalus = { type, timeLeft: MALUS_TYPES[type].dur * reduceFactor * hardPenalty };
     }
     const m = MALUS_TYPES[type];
     flashBanner(`${m.icon} ${m.label}`, m.color+'ee');
@@ -1921,8 +1959,11 @@
   function endRun(){
     running = false;
     stopMusic();
+    app.classList.remove('hard-active');
     wallet.coins += runCoins;
     const alt = Math.floor(score/10);
+    const runMode = gameMode;
+    const runHard = !!wallet.hardMode;
     updateChallenge('altitude_run', alt, 'max');
     updateChallenge('altitude_hard', alt, 'max');
     updateChallenge('coins_run', runCoins, 'max');
@@ -1945,7 +1986,7 @@
     s.bestCombo = Math.max(s.bestCombo||0, comboMax);
 
     // Succès + quête du monde en cours
-    const ctx = { world: currentWorld().id, alt, diamonds: diamondsThisRun, chests: chestsThisRun, comboMax, noMalus: noMalusThisRun };
+    const ctx = { world: currentWorld().id, alt, diamonds: diamondsThisRun, chests: chestsThisRun, comboMax, noMalus: noMalusThisRun, hard: runHard };
     checkAchievements(ctx);
     checkWorldQuest(ctx);
 
@@ -1957,6 +1998,10 @@
     document.getElementById('over-coins').textContent = runCoins;
     document.getElementById('over-combo').textContent = 'x'+Math.min(4,1+Math.floor(comboMax/3));
     document.getElementById('over-best').textContent = wallet.best;
+    const modeLabels = { normal:'🎮 Normal', zen:'🧘 Zen', chrono:'⏱️ Chrono 60s' };
+    document.getElementById('over-mode').textContent = modeLabels[runMode] + (runHard ? ' · 🔥 Difficile' : '');
+    lastRunMode = runMode;
+    lastRunHard = runHard;
     scoreSavedThisRun = false;
     const saveBtn = document.getElementById('btn-save-score');
     saveBtn.disabled = false;
@@ -2077,7 +2122,7 @@
     player.y += player.vy*dt;
     if(player.invul>0) player.invul -= dt;
 
-    const heavyMult = activeMalus && activeMalus.type==='lourd' ? 0.62 : 1;
+    const heavyMult = activeMalus && activeMalus.type==='lourd' ? (wallet.hardMode ? 0.5 : 0.62) : 1;
     const jumpBoost = 1 + wallet.jump*0.16;
     const JUMP_FORCE = -760*jumpBoost*heavyMult;
 
