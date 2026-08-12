@@ -1121,8 +1121,6 @@
       if(snap.exists){
         const d = snap.data();
         myFriends = d.friends || [];
-        // Garde le pseudo et la dernière connexion à jour (utilisé par le tableau de bord admin.html)
-        ref.set({ pseudo:(currentUser.displayName||'Joueur').slice(0,16), lastSeen: Date.now() }, {merge:true}).catch(()=>{});
         if(d.code){
           myFriendCode = d.code;
           refreshFriendsUI();
@@ -1130,13 +1128,7 @@
         }
       }
       myFriendCode = genFriendCode();
-      return ref.set({
-        code: myFriendCode,
-        pseudo: (currentUser.displayName||'Joueur').slice(0,16),
-        friends: myFriends,
-        createdAt: Date.now(),
-        lastSeen: Date.now()
-      }, {merge:true})
+      return ref.set({ code: myFriendCode, pseudo: (currentUser.displayName||'Joueur').slice(0,16), friends: myFriends }, {merge:true})
         .then(refreshFriendsUI);
     }).catch(err=>{ console.warn('Impossible de charger le profil ami', err); });
   }
@@ -2202,11 +2194,15 @@
     const diffMult = effectiveDiffMult();
     let y = spawnMaxY;
     while(y > targetY){
-      // difficulté progressive : t passe de 0 à 1 entre 0m et ~450m d'altitude, ajustée par le monde choisi
+      // difficulté progressive : t_prog passe de 0 à 1 entre 0m et ~450m d'altitude (indépendant du monde)
       const altHere = Math.max(0, (runStartY - y) / 10);
-      const t = Math.min(1, altHere / 450) * diffMult;
+      const t_prog = Math.min(1, altHere / 450);
+      // le monde choisi amplifie la difficulté, mais toujours de façon plafonnée pour rester jouable
+      const gapMult = Math.min(diffMult, 1.6);
+      const hazardMult = Math.min(diffMult, 1.8);
+      const t = t_prog * diffMult; // conservé pour la largeur des plateformes (léger rétrécissement, sans risque)
 
-      const gap = rand(52, 88) + t*46;              // écarts plus grands en montant
+      const gap = rand(52, 88) + t_prog*46*gapMult;   // écarts plus grands en montant, mais toujours sautables
       y -= gap;
       // les plateformes rétrécissent progressivement avec l'altitude (jusqu'à -30% de largeur)
       const plW = Math.round(PLAT_W * (1 - Math.min(0.3, t*0.22)));
@@ -2214,10 +2210,16 @@
       const roll = Math.random();
       let type = 'normal';
       const zenFactor = (gameMode==='zen') ? 0 : 1;
-      const malusChance = 0.12 * diffMult * zenFactor + t*0.12*zenFactor;
-      const crumbleChance = malusChance + 0.11 + t*0.05;
-      const movingChance = crumbleChance + 0.11 + t*0.08;
-      const shrinkChance = movingChance + 0.09 + t*0.08;               // plateformes qui rétrécissent au contact
+      let malusChance = (0.10 + t_prog*0.10) * hazardMult * zenFactor;
+      let crumbleChance = malusChance + (0.09 + t_prog*0.05) * zenFactor;
+      let movingChance = crumbleChance + (0.09 + t_prog*0.06) * zenFactor;
+      let shrinkChance = movingChance + (0.07 + t_prog*0.06) * zenFactor;    // plateformes qui rétrécissent au contact
+      // garantie : au moins ~28% de plateformes normales/sûres, quel que soit le monde ou le mode difficile
+      const HAZARD_CAP = 0.72;
+      if(shrinkChance > HAZARD_CAP){
+        const scale = HAZARD_CAP / shrinkChance;
+        malusChance *= scale; crumbleChance *= scale; movingChance *= scale; shrinkChance *= scale;
+      }
       if(roll < malusChance) type='malus';
       else if(roll < crumbleChance) type='crumble';
       else if(roll < movingChance) type='moving';
@@ -2235,14 +2237,14 @@
       if(Math.random() < diamondChance){
         diamonds.push({ x: x + plW/2 + rand(-14,14), y: y - rand(30,55), r:8, taken:false });
       }
-      const orbChance = (gameMode==='zen') ? 0 : (0.07 * diffMult + t*0.08);   // plus d'orbes malus en altitude
+      const orbChance = (gameMode==='zen') ? 0 : Math.min(0.22, 0.07 * hazardMult + t_prog*0.08);   // plus d'orbes malus en altitude, plafonné
       if(type!=='malus' && Math.random() < orbChance){
         const ks = Object.keys(MALUS_TYPES);
         const mt = ks[Math.floor(Math.random()*ks.length)];
         malusOrbs.push({ x: rand(24,W-24), y: y - rand(50,90), r:13, type:mt, taken:false });
       }
       // ennemis mobiles, apparaissent progressivement avec l'altitude, à éviter en vol
-      const enemyChance = (gameMode==='zen') ? 0 : t*0.10;
+      const enemyChance = (gameMode==='zen') ? 0 : t_prog*0.10;
       if(Math.random() < enemyChance){
         const ex = rand(30, W-30);
         enemies.push({ x: ex, y: y - rand(60,110), r:12, dir: Math.random()<0.5?-1:1, speed: rand(50,110)+t*60, minX: Math.max(10, ex-90), maxX: Math.min(W-10, ex+90), taken:false });
