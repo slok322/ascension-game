@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascension — Tableau de bord</title>
+<style>
+  :root{
+    --nuit1:#0b1026; --nuit2:#241a4a; --aube:#ff6b4a; --or:#ffd166;
+    --menthe:#4ecdc4; --malus:#ef476f; --brume:#8d8fc7; --panneau:#151233;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;min-height:100vh;
+    background:linear-gradient(180deg,var(--nuit2) 0%, var(--nuit1) 60%);
+    font-family:'Trebuchet MS',-apple-system,sans-serif;
+    color:#f2f0ff;
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 4px;
+    background:linear-gradient(90deg,var(--aube),var(--or));
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{color:var(--brume);font-size:13px;margin-bottom:24px;}
+
+  #gate{
+    max-width:340px;margin:80px auto;text-align:center;
+    background:var(--panneau);border:1px solid rgba(255,255,255,0.1);
+    border-radius:20px;padding:28px;
+  }
+  #gate input{
+    width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);
+    color:#f2f0ff;font-size:15px;padding:11px 14px;border-radius:12px;margin:14px 0;text-align:center;
+  }
+  #gate button{
+    background:linear-gradient(135deg,var(--aube),#ff9166);border:none;color:#1a0e0a;
+    font-weight:800;padding:11px 28px;border-radius:14px;font-size:15px;cursor:pointer;width:100%;
+  }
+  #gate .err{color:var(--malus);font-size:12.5px;min-height:16px;margin-top:6px;}
+
+  .hidden{display:none !important;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px;}
+  .stat-card{
+    background:var(--panneau);border:1px solid rgba(255,255,255,0.1);border-radius:16px;
+    padding:16px 18px;
+  }
+  .stat-card b{display:block;font-size:28px;}
+  .stat-card span{font-size:11.5px;color:var(--brume);text-transform:uppercase;letter-spacing:0.5px;}
+  .stat-card.coins b{color:var(--or);}
+  .stat-card.alt b{color:var(--menthe);}
+  .stat-card.hard b{color:var(--malus);}
+
+  h2{font-size:16px;margin:28px 0 12px;color:var(--brume);text-transform:uppercase;letter-spacing:0.5px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--panneau);border-radius:16px;overflow:hidden;}
+  th,td{text-align:left;padding:10px 14px;font-size:13.5px;border-bottom:1px solid rgba(255,255,255,0.06);}
+  th{color:var(--brume);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:0.5px;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,0.03);}
+  .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(78,205,196,0.15);color:var(--menthe);}
+  .tag.hard{background:rgba(239,71,105,0.15);color:var(--malus);}
+  .search{
+    width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+    color:#f2f0ff;font-size:14px;padding:9px 14px;border-radius:12px;margin-bottom:12px;
+  }
+  .loading{color:var(--brume);font-size:13px;padding:20px 0;text-align:center;}
+  .refresh-btn{
+    background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#f2f0ff;
+    padding:8px 16px;border-radius:12px;font-size:13px;cursor:pointer;margin-bottom:4px;
+  }
+</style>
+</head>
+<body>
+  <div id="gate">
+    <h1 style="font-size:20px;">🔐 Accès admin</h1>
+    <div class="sub">Ce tableau de bord affiche les données de tous les joueurs.</div>
+    <input type="password" id="gate-pass" placeholder="Mot de passe">
+    <button id="gate-btn">Entrer</button>
+    <div class="err" id="gate-err"></div>
+  </div>
+
+  <div class="wrap hidden" id="dashboard">
+    <h1>📊 Tableau de bord — Ascension</h1>
+    <div class="sub">Vue d'ensemble de tous les joueurs et scores enregistrés.</div>
+    <button class="refresh-btn" id="btn-refresh">🔄 Rafraîchir</button>
+
+    <div class="stat-grid">
+      <div class="stat-card"><b id="stat-players">–</b><span>Joueurs inscrits</span></div>
+      <div class="stat-card"><b id="stat-scores">–</b><span>Scores enregistrés</span></div>
+      <div class="stat-card alt"><b id="stat-best">–</b><span>Meilleure altitude, tous modes</span></div>
+      <div class="stat-card hard"><b id="stat-hard">–</b><span>Runs en mode difficile</span></div>
+    </div>
+
+    <h2>Tous les joueurs</h2>
+    <input class="search" id="search-players" placeholder="Rechercher un pseudo…">
+    <div id="players-table"><div class="loading">Chargement…</div></div>
+
+    <h2>Tous les scores</h2>
+    <input class="search" id="search-scores" placeholder="Rechercher un pseudo…">
+    <div id="scores-table"><div class="loading">Chargement…</div></div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  // -------- Réglages --------
+  // Change ce mot de passe : c'est un simple filtre côté navigateur, PAS une vraie sécurité.
+  // Les vraies règles de protection des données se font dans Firestore (voir les règles fournies).
+  const ADMIN_PASSWORD = "ascension2026";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBk6XKD0_nuGXO5EtuGqe9LiOVEgNEtC8g",
+    authDomain: "ascension-game-370c0.firebaseapp.com",
+    projectId: "ascension-game-370c0",
+    storageBucket: "ascension-game-370c0.firebasestorage.app",
+    messagingSenderId: "57942969538",
+    appId: "1:57942969538:web:450cb74c51f985e9c5bf5b"
+  };
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+
+  document.getElementById('gate-btn').onclick = tryEnter;
+  document.getElementById('gate-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') tryEnter(); });
+  function tryEnter(){
+    const val = document.getElementById('gate-pass').value;
+    if(val === ADMIN_PASSWORD){
+      document.getElementById('gate').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      loadAll();
+    } else {
+      document.getElementById('gate-err').textContent = 'Mot de passe incorrect.';
+    }
+  }
+
+  let allPlayers = [];
+  let allScores = [];
+
+  function loadAll(){
+    document.getElementById('players-table').innerHTML = '<div class="loading">Chargement…</div>';
+    document.getElementById('scores-table').innerHTML = '<div class="loading">Chargement…</div>';
+
+    Promise.all([
+      db.collection('users').get(),
+      db.collection('scores').get()
+    ]).then(([playersSnap, scoresSnap])=>{
+      allPlayers = playersSnap.docs.map(d=>({ uid:d.id, ...d.data() }));
+      allScores = scoresSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+
+      document.getElementById('stat-players').textContent = allPlayers.length;
+      document.getElementById('stat-scores').textContent = allScores.length;
+      const bestAlt = allScores.reduce((m,s)=> Math.max(m, s.altitude||0), 0);
+      document.getElementById('stat-best').textContent = bestAlt + ' m';
+      document.getElementById('stat-hard').textContent = allScores.filter(s=> s.hard).length;
+
+      renderPlayers();
+      renderScores();
+    }).catch(err=>{
+      document.getElementById('players-table').innerHTML = `<div class="loading">Erreur : ${err.message}</div>`;
+      document.getElementById('scores-table').innerHTML = '';
+      console.error(err);
+    });
+  }
+  document.getElementById('btn-refresh').onclick = loadAll;
+
+  function fmtDate(ts){
+    if(!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+  }
+
+  function renderPlayers(){
+    const q = document.getElementById('search-players').value.trim().toLowerCase();
+    const rows = allPlayers
+      .filter(p=> !q || (p.pseudo||'').toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q))
+      .sort((a,b)=> (b.lastSeen||0) - (a.lastSeen||0));
+    const el = document.getElementById('players-table');
+    if(!rows.length){ el.innerHTML = '<div class="loading">Aucun joueur trouvé.</div>'; return; }
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Pseudo</th><th>Code ami</th><th>Amis</th><th>Inscrit le</th><th>Vu la dernière fois</th></tr></thead>
+        <tbody>
+          ${rows.map(p=>`
+            <tr>
+              <td>${escapeHtml(p.pseudo||'—')}</td>
+              <td>${escapeHtml(p.code||'—')}</td>
+              <td>${(p.friends||[]).length}</td>
+              <td>${fmtDate(p.createdAt)}</td>
+              <td>${fmtDate(p.lastSeen)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderScores(){
+    const q = document.getElementById('search-scores').value.trim().toLowerCase();
+    const modeLabels = { normal:'Normal', zen:'Zen', chrono:'Chrono' };
+    const rows = allScores
+      .filter(s=> !q || (s.name||'').toLowerCase().includes(q))
+      .sort((a,b)=> (b.altitude||0) - (a.altitude||0));
+    const el = document.getElementById('scores-table');
+    if(!rows.length){ el.innerHTML = '<div class="loading">Aucun score trouvé.</div>'; return; }
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Pseudo</th><th>Mode</th><th>Altitude</th><th>Enregistré le</th></tr></thead>
+        <tbody>
+          ${rows.map(s=>`
+            <tr>
+              <td>${escapeHtml(s.name||'—')}</td>
+              <td>
+                <span class="tag">${modeLabels[s.mode]||s.mode||'normal'}</span>
+                ${s.hard ? '<span class="tag hard">difficile</span>' : ''}
+              </td>
+              <td>${s.altitude||0} m</td>
+              <td>${fmtDate(s.ts)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  document.getElementById('search-players').addEventListener('input', renderPlayers);
+  document.getElementById('search-scores').addEventListener('input', renderScores);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+</script>
+</body>
+</html>
