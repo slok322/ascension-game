@@ -1121,6 +1121,8 @@
       if(snap.exists){
         const d = snap.data();
         myFriends = d.friends || [];
+        // Garde le pseudo et la dernière connexion à jour (utilisé par le tableau de bord admin.html)
+        ref.set({ pseudo:(currentUser.displayName||'Joueur').slice(0,16), lastSeen: Date.now() }, {merge:true}).catch(()=>{});
         if(d.code){
           myFriendCode = d.code;
           refreshFriendsUI();
@@ -1128,7 +1130,13 @@
         }
       }
       myFriendCode = genFriendCode();
-      return ref.set({ code: myFriendCode, pseudo: (currentUser.displayName||'Joueur').slice(0,16), friends: myFriends }, {merge:true})
+      return ref.set({
+        code: myFriendCode,
+        pseudo: (currentUser.displayName||'Joueur').slice(0,16),
+        friends: myFriends,
+        createdAt: Date.now(),
+        lastSeen: Date.now()
+      }, {merge:true})
         .then(refreshFriendsUI);
     }).catch(err=>{ console.warn('Impossible de charger le profil ami', err); });
   }
