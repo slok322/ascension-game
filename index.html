@@ -2225,6 +2225,13 @@
       else if(roll < movingChance) type='moving';
       else if(roll < shrinkChance) type='shrink';
 
+      // garantie : après une plateforme à pics, la suivante est toujours sûre (normale),
+      // pour pouvoir continuer à monter sans être bloqué — la difficulté reste ailleurs
+      const prevPlat = platforms[platforms.length-1];
+      if(prevPlat && prevPlat.type === 'malus'){
+        type = 'normal';
+      }
+
       const platSpeed = (rand(45,95) + t*70) * (0.85 + diffMult*0.15); // plateformes mobiles plus rapides
       platforms.push({ x, y, w:plW, baseW:plW, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed, age:0, touched:false });
 
