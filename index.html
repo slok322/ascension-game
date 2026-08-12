@@ -2225,11 +2225,17 @@
       else if(roll < movingChance) type='moving';
       else if(roll < shrinkChance) type='shrink';
 
-      // garantie : après une plateforme à pics, la suivante est toujours sûre (normale),
-      // pour pouvoir continuer à monter sans être bloqué — la difficulté reste ailleurs
+      // toucher un pic affaiblit le saut : deux pics d'affilée peuvent rendre le second
+      // hors de portée (spirale injouable). On interdit donc UNIQUEMENT ce cas précis,
+      // en retirant un nouveau type parmi les autres catégories avec leurs proportions
+      // d'origine (la chance de pic elle-même, et celle des autres pièges, ne change pas).
       const prevPlat = platforms[platforms.length-1];
-      if(prevPlat && prevPlat.type === 'malus'){
-        type = 'normal';
+      if(type === 'malus' && prevPlat && prevPlat.type === 'malus'){
+        const reroll = Math.random() * (1 - malusChance);
+        if(reroll < crumbleChance - malusChance) type='crumble';
+        else if(reroll < movingChance - malusChance) type='moving';
+        else if(reroll < shrinkChance - malusChance) type='shrink';
+        else type='normal';
       }
 
       const platSpeed = (rand(45,95) + t*70) * (0.85 + diffMult*0.15); // plateformes mobiles plus rapides
