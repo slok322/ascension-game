@@ -17,7 +17,7 @@
     color:#f2f0ff;
     padding:24px 16px 60px;
   }
-  .wrap{max-width:920px;margin:0 auto;}
+  .wrap{max-width:980px;margin:0 auto;}
   h1{font-size:26px;margin:0 0 4px;
     background:linear-gradient(90deg,var(--aube),var(--or));
     -webkit-background-clip:text;background-clip:text;color:transparent;}
@@ -40,35 +40,51 @@
 
   .hidden{display:none !important;}
 
-  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;}
+  .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0 28px;}
   .stat-card{
     background:var(--panneau);border:1px solid rgba(255,255,255,0.1);border-radius:16px;
     padding:16px 18px;
   }
-  .stat-card b{display:block;font-size:28px;}
-  .stat-card span{font-size:11.5px;color:var(--brume);text-transform:uppercase;letter-spacing:0.5px;}
+  .stat-card b{display:block;font-size:26px;}
+  .stat-card span{font-size:11px;color:var(--brume);text-transform:uppercase;letter-spacing:0.5px;}
   .stat-card.coins b{color:var(--or);}
   .stat-card.alt b{color:var(--menthe);}
   .stat-card.hard b{color:var(--malus);}
+  .stat-card.active b{color:#7ee87e;}
 
   h2{font-size:16px;margin:28px 0 12px;color:var(--brume);text-transform:uppercase;letter-spacing:0.5px;}
 
+  .chart-card{
+    background:var(--panneau);border:1px solid rgba(255,255,255,0.1);border-radius:16px;
+    padding:18px;margin-bottom:12px;
+  }
+  #mode-chart{width:100%;height:140px;display:block;}
+
   table{width:100%;border-collapse:collapse;background:var(--panneau);border-radius:16px;overflow:hidden;}
   th,td{text-align:left;padding:10px 14px;font-size:13.5px;border-bottom:1px solid rgba(255,255,255,0.06);}
-  th{color:var(--brume);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:0.5px;}
+  th{color:var(--brume);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;user-select:none;white-space:nowrap;}
+  th:hover{color:#f2f0ff;}
+  th .arrow{opacity:0.5;font-size:10px;margin-left:3px;}
   tr:last-child td{border-bottom:none;}
   tr:hover td{background:rgba(255,255,255,0.03);}
   .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(78,205,196,0.15);color:var(--menthe);}
   .tag.hard{background:rgba(239,71,105,0.15);color:var(--malus);}
+  .row-top{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
   .search{
-    width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
-    color:#f2f0ff;font-size:14px;padding:9px 14px;border-radius:12px;margin-bottom:12px;
+    flex:1;min-width:180px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+    color:#f2f0ff;font-size:14px;padding:9px 14px;border-radius:12px;
   }
   .loading{color:var(--brume);font-size:13px;padding:20px 0;text-align:center;}
-  .refresh-btn{
+  .btn{
     background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#f2f0ff;
-    padding:8px 16px;border-radius:12px;font-size:13px;cursor:pointer;margin-bottom:4px;
+    padding:8px 16px;border-radius:12px;font-size:13px;cursor:pointer;white-space:nowrap;
   }
+  .btn:hover{background:rgba(255,255,255,0.14);}
+  .btn.primary{background:linear-gradient(135deg,var(--aube),#ff9166);color:#1a0e0a;font-weight:800;border:none;}
+  .table-wrap{overflow-x:auto;}
 </style>
 </head>
 <body>
@@ -81,24 +97,44 @@
   </div>
 
   <div class="wrap hidden" id="dashboard">
-    <h1>📊 Tableau de bord — Ascension</h1>
-    <div class="sub">Vue d'ensemble de tous les joueurs et scores enregistrés.</div>
-    <button class="refresh-btn" id="btn-refresh">🔄 Rafraîchir</button>
+    <div class="topbar">
+      <div>
+        <h1>📊 Tableau de bord — Ascension</h1>
+        <div class="sub">Vue d'ensemble de tous les joueurs et scores enregistrés.</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="btn-refresh">🔄 Rafraîchir</button>
+        <button class="btn" id="btn-logout">🔒 Verrouiller</button>
+      </div>
+    </div>
 
     <div class="stat-grid">
       <div class="stat-card"><b id="stat-players">–</b><span>Joueurs inscrits</span></div>
+      <div class="stat-card active"><b id="stat-active">–</b><span>Actifs (7 derniers jours)</span></div>
       <div class="stat-card"><b id="stat-scores">–</b><span>Scores enregistrés</span></div>
-      <div class="stat-card alt"><b id="stat-best">–</b><span>Meilleure altitude, tous modes</span></div>
+      <div class="stat-card alt"><b id="stat-best">–</b><span>Meilleure altitude</span></div>
+      <div class="stat-card alt"><b id="stat-avg">–</b><span>Altitude moyenne</span></div>
       <div class="stat-card hard"><b id="stat-hard">–</b><span>Runs en mode difficile</span></div>
     </div>
 
+    <h2>Scores par mode</h2>
+    <div class="chart-card">
+      <canvas id="mode-chart"></canvas>
+    </div>
+
     <h2>Tous les joueurs</h2>
-    <input class="search" id="search-players" placeholder="Rechercher un pseudo…">
-    <div id="players-table"><div class="loading">Chargement…</div></div>
+    <div class="row-top">
+      <input class="search" id="search-players" placeholder="Rechercher un pseudo ou un code…">
+      <button class="btn" id="export-players">⬇️ Export CSV</button>
+    </div>
+    <div class="table-wrap" id="players-table"><div class="loading">Chargement…</div></div>
 
     <h2>Tous les scores</h2>
-    <input class="search" id="search-scores" placeholder="Rechercher un pseudo…">
-    <div id="scores-table"><div class="loading">Chargement…</div></div>
+    <div class="row-top">
+      <input class="search" id="search-scores" placeholder="Rechercher un pseudo…">
+      <button class="btn" id="export-scores">⬇️ Export CSV</button>
+    </div>
+    <div class="table-wrap" id="scores-table"><div class="loading">Chargement…</div></div>
   </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -108,6 +144,7 @@
   // Change ce mot de passe : c'est un simple filtre côté navigateur, PAS une vraie sécurité.
   // Les vraies règles de protection des données se font dans Firestore (voir les règles fournies).
   const ADMIN_PASSWORD = "ascension2026";
+  const SESSION_KEY = "ascension_admin_unlocked";
 
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBk6XKD0_nuGXO5EtuGqe9LiOVEgNEtC8g",
@@ -121,21 +158,39 @@
   firebase.initializeApp(FIREBASE_CONFIG);
   const db = firebase.firestore();
 
+  // -------- Accès (session persistante le temps de l'onglet) --------
   document.getElementById('gate-btn').onclick = tryEnter;
   document.getElementById('gate-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') tryEnter(); });
+  document.getElementById('btn-logout').onclick = ()=>{
+    sessionStorage.removeItem(SESSION_KEY);
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('gate').classList.remove('hidden');
+    document.getElementById('gate-pass').value = '';
+  };
+
   function tryEnter(){
     const val = document.getElementById('gate-pass').value;
     if(val === ADMIN_PASSWORD){
-      document.getElementById('gate').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-      loadAll();
+      sessionStorage.setItem(SESSION_KEY, '1');
+      enterDashboard();
     } else {
       document.getElementById('gate-err').textContent = 'Mot de passe incorrect.';
     }
   }
+  function enterDashboard(){
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    loadAll();
+  }
+  if(sessionStorage.getItem(SESSION_KEY) === '1'){
+    enterDashboard();
+  }
 
+  // -------- Données --------
   let allPlayers = [];
   let allScores = [];
+  let playerSort = { key:'lastSeen', dir:-1 };
+  let scoreSort = { key:'altitude', dir:-1 };
 
   function loadAll(){
     document.getElementById('players-table').innerHTML = '<div class="loading">Chargement…</div>';
@@ -148,12 +203,19 @@
       allPlayers = playersSnap.docs.map(d=>({ uid:d.id, ...d.data() }));
       allScores = scoresSnap.docs.map(d=>({ id:d.id, ...d.data() }));
 
+      const now = Date.now();
+      const sevenDays = 7*24*60*60*1000;
+
       document.getElementById('stat-players').textContent = allPlayers.length;
+      document.getElementById('stat-active').textContent = allPlayers.filter(p=> p.lastSeen && (now-p.lastSeen)<sevenDays).length;
       document.getElementById('stat-scores').textContent = allScores.length;
       const bestAlt = allScores.reduce((m,s)=> Math.max(m, s.altitude||0), 0);
       document.getElementById('stat-best').textContent = bestAlt + ' m';
+      const avgAlt = allScores.length ? Math.round(allScores.reduce((s,d)=>s+(d.altitude||0),0)/allScores.length) : 0;
+      document.getElementById('stat-avg').textContent = avgAlt + ' m';
       document.getElementById('stat-hard').textContent = allScores.filter(s=> s.hard).length;
 
+      drawModeChart();
       renderPlayers();
       renderScores();
     }).catch(err=>{
@@ -170,16 +232,94 @@
     return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
   }
 
+  // -------- Graphique (scores par mode, dessiné en canvas, sans dépendance) --------
+  function drawModeChart(){
+    const canvas = document.getElementById('mode-chart');
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    const w = canvas.clientWidth || canvas.parentElement.clientWidth - 36;
+    const h = 140;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+
+    const modeLabels = { normal:'Normal', zen:'Zen', chrono:'Chrono' };
+    const counts = { normal:0, zen:0, chrono:0 };
+    allScores.forEach(s=>{ const m = s.mode||'normal'; if(counts[m]==null) counts[m]=0; counts[m]++; });
+    const keys = Object.keys(counts);
+    const max = Math.max(1, ...keys.map(k=>counts[k]));
+    const colors = { normal:'#4ecdc4', zen:'#7ee87e', chrono:'#ffd166' };
+
+    const barW = Math.min(70, (w-40)/keys.length - 20);
+    const gap = (w - barW*keys.length) / (keys.length+1);
+    const baseY = h-24;
+    const maxBarH = h-50;
+
+    keys.forEach((k,i)=>{
+      const x = gap + i*(barW+gap);
+      const barH = (counts[k]/max) * maxBarH;
+      ctx.fillStyle = colors[k]||'#8d8fc7';
+      const y = baseY - barH;
+      ctx.beginPath();
+      ctx.moveTo(x, baseY);
+      ctx.lineTo(x, y+6);
+      ctx.arcTo(x, y, x+6, y, 6);
+      ctx.lineTo(x+barW-6, y);
+      ctx.arcTo(x+barW, y, x+barW, y+6, 6);
+      ctx.lineTo(x+barW, baseY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#f2f0ff';
+      ctx.font = '700 13px Trebuchet MS, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(counts[k], x+barW/2, y-8);
+
+      ctx.fillStyle = '#8d8fc7';
+      ctx.font = '11px Trebuchet MS, sans-serif';
+      ctx.fillText(modeLabels[k]||k, x+barW/2, baseY+16);
+    });
+  }
+  window.addEventListener('resize', ()=>{ if(!document.getElementById('dashboard').classList.contains('hidden')) drawModeChart(); });
+
+  // -------- Tri des tableaux --------
+  function sortRows(rows, sortState){
+    const { key, dir } = sortState;
+    return rows.slice().sort((a,b)=>{
+      let av = a[key], bv = b[key];
+      if(typeof av === 'string' || typeof bv === 'string'){
+        av = (av||'').toString().toLowerCase(); bv = (bv||'').toString().toLowerCase();
+        return av < bv ? -1*dir : av > bv ? 1*dir : 0;
+      }
+      av = av||0; bv = bv||0;
+      return (av-bv)*dir;
+    });
+  }
+  function headerArrow(sortState, key){
+    if(sortState.key !== key) return '';
+    return `<span class="arrow">${sortState.dir===1?'▲':'▼'}</span>`;
+  }
+  function toggleSort(sortState, key){
+    if(sortState.key === key) sortState.dir *= -1;
+    else { sortState.key = key; sortState.dir = -1; }
+  }
+
+  // -------- Joueurs --------
   function renderPlayers(){
     const q = document.getElementById('search-players').value.trim().toLowerCase();
-    const rows = allPlayers
-      .filter(p=> !q || (p.pseudo||'').toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q))
-      .sort((a,b)=> (b.lastSeen||0) - (a.lastSeen||0));
+    let rows = allPlayers.filter(p=> !q || (p.pseudo||'').toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q));
+    rows = sortRows(rows, playerSort);
     const el = document.getElementById('players-table');
     if(!rows.length){ el.innerHTML = '<div class="loading">Aucun joueur trouvé.</div>'; return; }
     el.innerHTML = `
       <table>
-        <thead><tr><th>Pseudo</th><th>Code ami</th><th>Amis</th><th>Inscrit le</th><th>Vu la dernière fois</th></tr></thead>
+        <thead><tr>
+          <th data-key="pseudo">Pseudo ${headerArrow(playerSort,'pseudo')}</th>
+          <th data-key="code">Code ami ${headerArrow(playerSort,'code')}</th>
+          <th data-key="friendsCount">Amis ${headerArrow(playerSort,'friendsCount')}</th>
+          <th data-key="createdAt">Inscrit le ${headerArrow(playerSort,'createdAt')}</th>
+          <th data-key="lastSeen">Vu la dernière fois ${headerArrow(playerSort,'lastSeen')}</th>
+        </tr></thead>
         <tbody>
           ${rows.map(p=>`
             <tr>
@@ -193,19 +333,27 @@
         </tbody>
       </table>
     `;
+    el.querySelectorAll('th[data-key]').forEach(th=>{
+      th.addEventListener('click', ()=>{ toggleSort(playerSort, th.dataset.key); renderPlayers(); });
+    });
   }
 
+  // -------- Scores --------
   function renderScores(){
     const q = document.getElementById('search-scores').value.trim().toLowerCase();
     const modeLabels = { normal:'Normal', zen:'Zen', chrono:'Chrono' };
-    const rows = allScores
-      .filter(s=> !q || (s.name||'').toLowerCase().includes(q))
-      .sort((a,b)=> (b.altitude||0) - (a.altitude||0));
+    let rows = allScores.filter(s=> !q || (s.name||'').toLowerCase().includes(q));
+    rows = sortRows(rows, scoreSort);
     const el = document.getElementById('scores-table');
     if(!rows.length){ el.innerHTML = '<div class="loading">Aucun score trouvé.</div>'; return; }
     el.innerHTML = `
       <table>
-        <thead><tr><th>Pseudo</th><th>Mode</th><th>Altitude</th><th>Enregistré le</th></tr></thead>
+        <thead><tr>
+          <th data-key="name">Pseudo ${headerArrow(scoreSort,'name')}</th>
+          <th data-key="mode">Mode ${headerArrow(scoreSort,'mode')}</th>
+          <th data-key="altitude">Altitude ${headerArrow(scoreSort,'altitude')}</th>
+          <th data-key="ts">Enregistré le ${headerArrow(scoreSort,'ts')}</th>
+        </tr></thead>
         <tbody>
           ${rows.map(s=>`
             <tr>
@@ -221,10 +369,44 @@
         </tbody>
       </table>
     `;
+    el.querySelectorAll('th[data-key]').forEach(th=>{
+      th.addEventListener('click', ()=>{ toggleSort(scoreSort, th.dataset.key); renderScores(); });
+    });
   }
 
   document.getElementById('search-players').addEventListener('input', renderPlayers);
   document.getElementById('search-scores').addEventListener('input', renderScores);
+
+  // -------- Export CSV --------
+  function downloadCSV(filename, rows, headers){
+    const esc = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+    const lines = [headers.map(h=>esc(h.label)).join(',')]
+      .concat(rows.map(r=> headers.map(h=> esc(h.fmt ? h.fmt(r) : r[h.key])).join(',')));
+    const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('export-players').onclick = ()=>{
+    downloadCSV('joueurs_ascension.csv', allPlayers, [
+      { key:'pseudo', label:'Pseudo' },
+      { key:'code', label:'Code ami' },
+      { key:'friends', label:'Amis', fmt:p=>(p.friends||[]).length },
+      { key:'createdAt', label:'Inscrit le', fmt:p=>fmtDate(p.createdAt) },
+      { key:'lastSeen', label:'Vu la dernière fois', fmt:p=>fmtDate(p.lastSeen) },
+    ]);
+  };
+  document.getElementById('export-scores').onclick = ()=>{
+    downloadCSV('scores_ascension.csv', allScores, [
+      { key:'name', label:'Pseudo' },
+      { key:'mode', label:'Mode', fmt:s=>s.mode||'normal' },
+      { key:'hard', label:'Difficile', fmt:s=>s.hard?'Oui':'Non' },
+      { key:'altitude', label:'Altitude (m)' },
+      { key:'ts', label:'Enregistré le', fmt:s=>fmtDate(s.ts) },
+    ]);
+  };
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
