@@ -771,6 +771,7 @@
     { id:'citron',  name:'Citron vert',   color:'#c6ff00', cost:110 },
     { id:'cuivre',  name:'Cuivre',        color:'#c77b3f', cost:150 },
     { id:'galaxie', name:'Galaxie',       color:'#5c4dff', cost:0, unlockAch:'chests_50', unlockLabel:"Succès « Chasseur de trésors » (50 coffres)" },
+    { id:'grenade',       name:'Grenade',        color:'#3a3a3a', cost:130, icon:'💣' },
   ];
 
   const TRAILS = [
@@ -1568,7 +1569,7 @@
       const div = document.createElement('div');
       div.className='item';
       div.innerHTML = `
-        <div class="ic" style="background:${s.color}33;color:${s.color};border-color:${s.color};">●</div>
+        <div class="ic" style="background:${s.color}33;color:${s.color};border-color:${s.color};">${s.icon || '●'}</div>
         <div class="txt">
           <b>${s.name}</b>
           <small>${sub}</small>
@@ -2123,6 +2124,7 @@
   };
 
   let player, platforms, coins, diamonds, chests, malusOrbs, particles, enemies, boosts;
+  let lastWasMalus = false, hazardStreak = 0; // évite d'enchaîner les pics et garantit une plateforme sûre pas loin
   let camY, score, runCoins, running, gameStarted;
   let activeMalus = null;
   let activeBoost = null; // { type:'double'|'speed', timeLeft }
@@ -2162,6 +2164,7 @@
     combo = 0; comboMax = 0; diamondsThisRun = 0; chestsThisRun = 0;
     recordCelebrated = false;
     noMalusThisRun = true;
+    lastWasMalus = false; hazardStreak = 0;
     shakeTime = 0; shakeMag = 0;
     dashLeft = wallet.airDash ? 1 : 0;
     timeLeft = 60;
@@ -2224,19 +2227,6 @@
       else if(roll < crumbleChance) type='crumble';
       else if(roll < movingChance) type='moving';
       else if(roll < shrinkChance) type='shrink';
-
-      // toucher un pic affaiblit le saut : deux pics d'affilée peuvent rendre le second
-      // hors de portée (spirale injouable). On interdit donc UNIQUEMENT ce cas précis,
-      // en retirant un nouveau type parmi les autres catégories avec leurs proportions
-      // d'origine (la chance de pic elle-même, et celle des autres pièges, ne change pas).
-      const prevPlat = platforms[platforms.length-1];
-      if(type === 'malus' && prevPlat && prevPlat.type === 'malus'){
-        const reroll = Math.random() * (1 - malusChance);
-        if(reroll < crumbleChance - malusChance) type='crumble';
-        else if(reroll < movingChance - malusChance) type='moving';
-        else if(reroll < shrinkChance - malusChance) type='shrink';
-        else type='normal';
-      }
 
       const platSpeed = (rand(45,95) + t*70) * (0.85 + diffMult*0.15); // plateformes mobiles plus rapides
       platforms.push({ x, y, w:plW, baseW:plW, type, dir: Math.random()<0.5?-1:1, broken:false, speed: platSpeed, age:0, touched:false });
@@ -2980,15 +2970,22 @@
 
     // joueur
     const py = player.y - camY;
-    const skinColor = (SKINS.find(s=>s.id===wallet.skin)||SKINS[0]).color;
+    const skinObj = SKINS.find(s=>s.id===wallet.skin) || SKINS[0];
     ctx.save();
     if(player.invul>0 && Math.floor(player.invul*10)%2===0) ctx.globalAlpha = 0.4;
-    ctx.fillStyle = skinColor;
-    ctx.beginPath(); ctx.arc(player.x, py, player.r, 0, 7); ctx.fill();
-    ctx.fillStyle = '#0b1026';
     const eyeOff = player.vx>4?2:(player.vx<-4?-2:0);
-    ctx.beginPath(); ctx.arc(player.x-5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(player.x+5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+    if(skinObj.icon){
+      // skin en forme d'icône (ex: grenade) : pas de rond coloré ni d'yeux, juste l'icône
+      ctx.font = `${Math.round(player.r*2*(skinObj.iconScale||1))}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(skinObj.icon, player.x, py);
+    } else {
+      ctx.fillStyle = skinObj.color;
+      ctx.beginPath(); ctx.arc(player.x, py, player.r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#0b1026';
+      ctx.beginPath(); ctx.arc(player.x-5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(player.x+5+eyeOff, py-3, 2.2, 0, 7); ctx.fill();
+    }
 
     // Accessoires cosmétiques (lunettes, autre, puis chapeau par-dessus)
     ctx.font = `${Math.round(player.r*1.1)}px sans-serif`;
